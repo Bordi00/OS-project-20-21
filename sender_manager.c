@@ -1,7 +1,7 @@
 
 /// @file sender_manager.c
 /// @brief Contiene l'implementazione del sender_manager.
-//ciao
+
 #include "err_exit.h"
 #include "defines.h"
 #include "shared_memory.h"

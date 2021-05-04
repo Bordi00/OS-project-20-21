@@ -52,12 +52,8 @@ struct msg fill_structure(char buffer[], struct msg message, int j){
 					break;
 					}
 			}
+
 			
-
-				message.delS1[index + 1] = '\0';
-				message.delS2[index + 1] = '\0';
-				message.delS3[index + 1] = '\0';
-
       return message;
 }
 
@@ -166,7 +162,7 @@ void writeFile(struct container msgFile, struct msg message, int fd){
         if (numWrite != sizeof(char))
           ErrExit("write");
 
-				printf("%s\n", message.type);
+			//	printf("%s\n", message.type);
 }
 
 void writeF8(int pid_S[3]){

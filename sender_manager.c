@@ -11,6 +11,7 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 
+
 int main(int argc, char * argv[]) {
 
   int pid_S[3];
@@ -36,8 +37,8 @@ int main(int argc, char * argv[]) {
 
 	//=================================================================================
 	//creazione fifo
-
-  if(mkfifo("OutputFiles/my_fifo.txt", S_IRUSR | S_IWUSR) == -1){
+  int fifo;
+  if((fifo = mkfifo("OutputFiles/my_fifo.txt", S_IRUSR | S_IWUSR | S_IRWXO)) == -1){
     ErrExit("create fifo failed");
   }
 
@@ -71,13 +72,13 @@ int main(int argc, char * argv[]) {
 	//creazione dei semafori
 
 	key_t semKey = 01110011;
-  int semid = semget(semKey, 3, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semid = semget(semKey, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
 
   if(semid == -1){
     ErrExit("semget failed");
   }
 
-  unsigned short semInitVal[] = {1, 1, 1};
+  unsigned short semInitVal[] = {1};
   union semun arg;
   arg.array = semInitVal;
 
@@ -130,8 +131,9 @@ int main(int argc, char * argv[]) {
     }
   }
 
+//==============================ESECUZIONE S1========================================//
 
-  if(pid == 0 && pid_S[0] > 0 && pid_S[1] == 0 && pid_S[2] == 0){ //S1
+  if(pid == 0 && pid_S[0] > 0 && pid_S[1] == 0 && pid_S[2] == 0){
 		if(close(pipe1[0]) == -1){
 			ErrExit("Close of Read hand of pipe1 failed.\n");
 		}
@@ -146,7 +148,7 @@ int main(int argc, char * argv[]) {
     }
 
 
-		off_t current = lseek(F0, strlen(heading) - 3, SEEK_CUR); //ci spostiamo dopo l'intestazione (heading)
+		lseek(F0, strlen(heading) - 3, SEEK_CUR); //ci spostiamo dopo l'intestazione (heading)
 
     int F1 = open("OutputFiles/F1.csv", O_RDWR | O_CREAT, S_IRWXU);
 
@@ -163,7 +165,7 @@ int main(int argc, char * argv[]) {
     ssize_t numRead;
 		int start_line = 0;
 
-    while(read(F0, &buffer[i], sizeof(char)) > 0 && buffer[i] != '\0'){
+    while((numRead = read(F0, &buffer[i], sizeof(char))) > 0 && buffer[i] != '\0'){
 
       if(buffer[i] == '\n'){
 
@@ -173,8 +175,6 @@ int main(int argc, char * argv[]) {
         struct msg message = {"", "", "", "", "", "", "", ""};
 				message = fill_structure(buffer, message, start_line);
 
-        //printf("%s %s\n", message.message, message.type);
-
         if(strcmp(message.idSender, "S1") == 0){
 					sleep(atoi(message.delS1));   //il messaggio attende delS1 secondi prima di essere inviato
 					msgFile = get_time_departure(msgFile);
@@ -182,7 +182,7 @@ int main(int argc, char * argv[]) {
 
 					//inviamo il messaggio alla corrispondente IPC
 					if(strcmp(message.type, "Q") == 0){
-            
+
 						m.m_message = message;
 						ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
 						if(msgsnd(msqid, &m, mSize ,0) == -1){
@@ -191,20 +191,7 @@ int main(int argc, char * argv[]) {
 					}
 
 					if(strcmp(message.type, "SH") == 0){
-            struct sembuf sops[3];
-            sops[0].sem_num = 0;
-            sops[0].sem_op = -1;
-            sops[0].sem_flg = 0;
-
-            sops[1].sem_num = 1;
-            sops[1].sem_op = -2;
-            sops[1].sem_flg = 0;
-
-            sops[2].sem_num = 2;
-            sops[2].sem_op = -2;
-            sops[2].sem_flg = 0;
-
-						semOp(semid, sops, 3);	//-1 sul semaforo di S1
+						semOp(semid, 0, -1);	//-1 sul semaforo di S1
 
             strcpy(messageSH->id, message.id);
             strcpy(messageSH->message, message.message);
@@ -215,19 +202,7 @@ int main(int argc, char * argv[]) {
             strcpy(messageSH->delS3, message.delS3);
             strcpy(messageSH->type, message.type);
 
-            sops[0].sem_num = 0;
-            sops[0].sem_op = 1;
-            sops[0].sem_flg = 0;
-
-            sops[1].sem_num = 1;
-            sops[1].sem_op =  2;
-            sops[1].sem_flg = 0;
-
-            sops[2].sem_num = 2;
-            sops[2].sem_op =  2;
-            sops[2].sem_flg = 0;
-
-            semOp(semid, sops, 3);
+            semOp(semid, 0, 1);
 					}
 
         }
@@ -236,7 +211,6 @@ int main(int argc, char * argv[]) {
         	sleep(atoi(message.delS1));   //il messaggio attende delS1 secondi prima di essere inviato
           msgFile = get_time_departure(msgFile);
           writeFile(msgFile, message, F1);	//scrittura messaggio su F1
-
           //mandiamo ad S2 tramite pipe1
           ssize_t nBys = write(pipe1[1], &message, sizeof(struct msg));
           if(nBys != sizeof(struct msg))
@@ -248,6 +222,7 @@ int main(int argc, char * argv[]) {
 					sleep(atoi(message.delS1));   //il messaggio attende delS1 secondi prima di essere inviato
 					msgFile = get_time_departure(msgFile);
 					writeFile(msgFile, message, F1);	//scrittura messaggio su F1
+
           //mandiamo ad S2 tramite pipe1
           ssize_t nBys = write(pipe1[1], &message, sizeof(struct msg));
           if(nBys != sizeof(struct msg))
@@ -262,12 +237,19 @@ int main(int argc, char * argv[]) {
 		if(close(F1) == -1)
 			ErrExit("close");
 
+    struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
+
+    numWrite = write(pipe1[1], &final_msg, sizeof(struct msg));
+
     if(close(pipe1[1]) == -1){
       ErrExit("close pipe1 write end in S1 failed");
     }
 
+    exit(0);
 
-  }else if(pid == 0 && pid_S[0] == 0 && pid_S[1] > 0 && pid_S[2] == 0){ //S2
+  }else if(pid == 0 && pid_S[0] == 0 && pid_S[1] > 0 && pid_S[2] == 0){
+
+  //==============================ESECUZIONE S2========================================//
 
   if(close(pipe1[1]) == -1){
     ErrExit("Close of Write end of pipe1 failed");
@@ -292,6 +274,7 @@ int main(int argc, char * argv[]) {
   ssize_t nBys;
 
   while((nBys = read(pipe1[0], &message, sizeof(struct msg))) > 0){
+
     struct container msgFile = {"","","","","",""};
     msgFile = get_time_arrival(msgFile); //segniamo l'ora di arrivo di F0 e la scriviamo in msgF1
 
@@ -299,7 +282,7 @@ int main(int argc, char * argv[]) {
       sleep(atoi(message.delS2));   //il messaggio attende delS1 secondi prima di essere inviato
       msgFile = get_time_departure(msgFile);
       writeFile(msgFile, message, F2);	//scrittura messaggio su F1
-      printf("%s\n", message.type);
+
       //inviamo il messaggio alla corrispondente IPC
       if(strcmp(message.type, "Q") == 0){
         m.m_message = message;
@@ -310,21 +293,8 @@ int main(int argc, char * argv[]) {
       }
 
       if(strcmp(message.type, "SH") == 0){
-        struct sembuf sops[3];
-        sops[0].sem_num = 0;
-        sops[0].sem_op = -2;
-        sops[0].sem_flg = 0;
 
-        sops[1].sem_num = 1;
-        sops[1].sem_op = -1;
-        sops[1].sem_flg = 0;
-
-        sops[2].sem_num = 2;
-        sops[2].sem_op = -2;
-        sops[2].sem_flg = 0;
-
-        semOp(semid, sops, 3);	//-1 sul semaforo di S1
-
+        semOp(semid, 0, -1);
 
         strcpy(messageSH->id, message.id);
         strcpy(messageSH->message, message.message);
@@ -335,19 +305,7 @@ int main(int argc, char * argv[]) {
         strcpy(messageSH->delS3, message.delS3);
         strcpy(messageSH->type, message.type);
 
-        sops[0].sem_num = 0;
-        sops[0].sem_op = 2;
-        sops[0].sem_flg = 0;
-
-        sops[1].sem_num = 1;
-        sops[1].sem_op =  1;
-        sops[1].sem_flg = 0;
-
-        sops[2].sem_num = 2;
-        sops[2].sem_op =  2;
-        sops[2].sem_flg = 0;
-
-        semOp(semid, sops, 3);
+        semOp(semid, 0, 1);
       }
 
     }
@@ -357,11 +315,15 @@ int main(int argc, char * argv[]) {
       msgFile = get_time_departure(msgFile);
       writeFile(msgFile, message, F2);	//scrittura messaggio su F1
 
-      //mandiamo ad S2 tramite pipe1
+      //mandiamo ad S3 tramite pipe2
       ssize_t nBys = write(pipe2[1], &message, sizeof(struct msg));
       if(nBys != sizeof(struct msg))
         ErrExit("write to pipe2 failed");
 
+    }
+
+    if(strcmp(message.id, "-1") == 0){
+      break;
     }
 
   }
@@ -370,9 +332,15 @@ int main(int argc, char * argv[]) {
     ErrExit("Close of Read end of pipe1 failed (S2)");
   }
 
+  struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
+
+  numWrite = write(pipe2[1], &final_msg, sizeof(struct msg));
+
   if(close(pipe2[1]) == -1){
     ErrExit("Close of Write end of pipe2 failed (S2)");
   }
+
+  exit(0);
 
   }else if(pid == 0 && pid_S[0] == 0 && pid_S[1] == 0 && pid_S[2] > 0){ //S3
 
@@ -380,7 +348,7 @@ int main(int argc, char * argv[]) {
       ErrExit("Close write end of pipe2");
     }
 
-    int F3 = open("OutputFiles/F3.csv", O_RDWR | O_CREAT, S_IRWXU );
+    int F3 = open("OutputFiles/F3.csv", O_RDWR | O_CREAT, S_IRWXU);
 
     if(F3 == -1){
       ErrExit("open F3 failed");
@@ -414,20 +382,8 @@ int main(int argc, char * argv[]) {
       }
 
       if(strcmp(message.type, "SH") == 0){
-        struct sembuf sops[3];
-        sops[0].sem_num = 0;
-        sops[0].sem_op = -2;
-        sops[0].sem_flg = 0;
 
-        sops[1].sem_num = 1;
-        sops[1].sem_op = -2;
-        sops[1].sem_flg = 0;
-
-        sops[2].sem_num = 2;
-        sops[2].sem_op = -1;
-        sops[2].sem_flg = 0;
-
-        semOp(semid, sops, 3);	//-1 sul semaforo di S1
+        semOp(semid, 0, -1);	//-1 sul semaforo di S1
 
         strcpy(messageSH->id, message.id);
         strcpy(messageSH->message, message.message);
@@ -438,22 +394,11 @@ int main(int argc, char * argv[]) {
         strcpy(messageSH->delS3, message.delS3);
         strcpy(messageSH->type, message.type);
 
-        sops[0].sem_num = 0;
-        sops[0].sem_op = 2;
-        sops[0].sem_flg = 0;
-
-        sops[1].sem_num = 1;
-        sops[1].sem_op =  2;
-        sops[1].sem_flg = 0;
-
-        sops[2].sem_num = 2;
-        sops[2].sem_op =  1;
-        sops[2].sem_flg = 0;
-
-        semOp(semid, sops, 3);
+        semOp(semid, 0, 1);
       }
 
       if(strcmp(message.type, "FIFO") == 0){
+
         int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY);
 
         if(fifo == -1){
@@ -465,7 +410,13 @@ int main(int argc, char * argv[]) {
         if(numWrite != sizeof(struct msg)){
           ErrExit("write on fifo failed");
         }
+        
       }
+
+      if(strcmp(message.id, "-1") == 0){
+        break;
+      }
+
     }
 
   if(close(F3) == -1){
@@ -476,31 +427,43 @@ int main(int argc, char * argv[]) {
     ErrExit("Close of read end of pipe2 failed (S3)");
   }
 
+  exit(0);
+
   }else if(pid != 0 && pid_S[0] > 0 && pid_S[1] > 0 && pid_S[2] > 0){  //Padre
     writeF8(pid_S);
-    /*
+
     // parent process must run here!
     int status = 0;
     int i = 0;
 
     // get termination status of each created subprocess.
-
     while((pid = wait(&status)) != -1){
-      if(pid_S[0] == pid){
-        printf("%d\n", pid);
-        if(close(pipe1[1]) == -1){
-          ErrExit("close pipe1 write end in father failed");
-        }
-        if(close(pipe1[0]) == -1){
-          ErrExit("close pipe1 read end in father failed");
-        }
-      }
       printf("Child %d exited, status = %d\n", pid_S[i], WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
       i++;
     }
-    */
+
+    if(close(pipe1[1]) == -1){
+      ErrExit("close pipe1 write end in father failed");
+    }
+
+    if(close(pipe1[0]) == -1){
+      ErrExit("close pipe1 read end in father failed");
+    }
+
+    if(close(pipe2[1]) == -1){
+      ErrExit("close pipe2 write end in father failed");
+    }
+    if(close(pipe2[0]) == -1){
+      ErrExit("close pipe2 read end in father failed");
+    }
+
+    close(fifo);
+    free_shared_memory(messageSH);
+
+    if(semctl(semid, 0, IPC_RMID, 0) == -1)
+      ErrExit("semctl failed");
+
+    return 0;
+
   }
-
-	return 0;
-
 }

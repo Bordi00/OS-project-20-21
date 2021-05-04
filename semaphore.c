@@ -8,9 +8,9 @@
 #include "semaphore.h"
 
 
-void semOp (int semid, struct sembuf sops[3], short sem_op) {
-    //struct sembuf sop[sem_num] = { .sem_num = sem_num, .sem_op = sem_op, .sem_flg = 0};
+void semOp (int semid, unsigned short sem_num, short sem_op) {
+    struct sembuf sop = {sop.sem_num = sem_num, sop.sem_op = sem_op};
 
-    if (semop(semid, &sops, sem_op) == -1)
+    if (semop(semid, &sop, 1) == -1)
         ErrExit("semop failed");
 }

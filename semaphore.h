@@ -19,6 +19,6 @@ union semun {
  * of a semaphore set. semid is a semaphore set identifier, sem_num is the
  * index of a semaphore in the set, sem_op is the operation performed on sem_num
  */
-void semOp (int semid, struct sembuf sops[3], short sem_op);
+void semOp (int semid, unsigned short sem_num, short sem_op);
 
 #endif

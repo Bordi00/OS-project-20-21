@@ -1,7 +1,7 @@
 
 /// @file sender_manager.c
 /// @brief Contiene l'implementazione del sender_manager.
-
+//ciao
 #include "err_exit.h"
 #include "defines.h"
 #include "shared_memory.h"
@@ -410,7 +410,7 @@ int main(int argc, char * argv[]) {
         if(numWrite != sizeof(struct msg)){
           ErrExit("write on fifo failed");
         }
-        
+
       }
 
       if(strcmp(message.id, "-1") == 0){

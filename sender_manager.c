@@ -51,7 +51,7 @@ int main(int argc, char * argv[]) {
   struct msg *messageSH = (struct msg *)get_shared_memory(shmid, 0);
 
 	//==================================================================================
-	//creazione della message queue
+	//creazione della message queue tra Senders e Receivers
 
 	struct mymsg{
 		long mtype;
@@ -67,6 +67,17 @@ int main(int argc, char * argv[]) {
     ErrExit("msgget failed");
   }
 
+  //==================================================================================
+  //creazione della message queue tra Sender e i loro figli
+  struct mymsg internal_msg;
+  internal_msg.mtype = 1;
+
+  key_t mqKey = ftok("receiver_manager.c", 'A');
+  int mqid = msgget(mqKey, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqid == -1){
+    ErrExit("internal msgget failed");
+  }
 
   //==================================================================================
 	//creazione dei semafori
@@ -164,6 +175,7 @@ int main(int argc, char * argv[]) {
     int i = 0;
     ssize_t numRead;
 		int start_line = 0;
+    ssize_t internal_mSize = sizeof(struct mymsg) - sizeof(long);
 
     while((numRead = read(F0, &buffer[i], sizeof(char))) > 0 && buffer[i] != '\0'){
 
@@ -175,58 +187,70 @@ int main(int argc, char * argv[]) {
         struct msg message = {"", "", "", "", "", "", "", ""};
 				message = fill_structure(buffer, message, start_line);
 
-        if(strcmp(message.idSender, "S1") == 0){
-					sleep(atoi(message.delS1));   //il messaggio attende delS1 secondi prima di essere inviato
-					msgFile = get_time_departure(msgFile);
-					writeFile(msgFile, message, F1);	//scrittura messaggio su F1
+        //creo figlio che gestisce il messaggio
+        pid = fork();
 
-					//inviamo il messaggio alla corrispondente IPC
-					if(strcmp(message.type, "Q") == 0){
+        if(pid == 0){ //sono nel figlio
+          sleep(atoi(message.delS1));
+          internal_msg.m_message = message;
+          if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){
+            ErrExit("message send failed (S1 child)");
+          }
 
-						m.m_message = message;
-						ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
-						if(msgsnd(msqid, &m, mSize ,0) == -1){
-							ErrExit("message send failed (S1)");
-						}
-					}
-
-					if(strcmp(message.type, "SH") == 0){
-						semOp(semid, 0, -1);	//-1 sul semaforo di S1
-
-            strcpy(messageSH->id, message.id);
-            strcpy(messageSH->message, message.message);
-            strcpy(messageSH->idSender, message.idSender);
-            strcpy(messageSH->idReceiver, message.idReceiver);
-            strcpy(messageSH->delS1, message.delS1);
-            strcpy(messageSH->delS2, message.delS2);
-            strcpy(messageSH->delS3, message.delS3);
-            strcpy(messageSH->type, message.type);
-
-            semOp(semid, 0, 1);
-					}
-
+          exit(0);
         }
 
-				if(strcmp(message.idSender, "S2") == 0){
-        	sleep(atoi(message.delS1));   //il messaggio attende delS1 secondi prima di essere inviato
-          msgFile = get_time_departure(msgFile);
-          writeFile(msgFile, message, F1);	//scrittura messaggio su F1
-          //mandiamo ad S2 tramite pipe1
-          ssize_t nBys = write(pipe1[1], &message, sizeof(struct msg));
-          if(nBys != sizeof(struct msg))
-            ErrExit("write to pipe1 failed");
+        if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){
+          continue;
+        }else{
+          if(strcmp(internal_msg.m_message.idSender, "S1") == 0){
+            msgFile = get_time_departure(msgFile);
+            writeFile(msgFile, message, F1);	//scrittura messaggio su F1
 
-        }
+            //inviamo il messaggio alla corrispondente IPC
+            if(strcmp(internal_msg.m_message.type, "Q") == 0){
+              if(msgsnd(msqid, &internal_msg, internal_mSize ,0) == -1){
+                ErrExit("message send failed (S1)");
+              }
+            }
 
-				if(strcmp(message.idSender, "S3") == 0){
-					sleep(atoi(message.delS1));   //il messaggio attende delS1 secondi prima di essere inviato
-					msgFile = get_time_departure(msgFile);
-					writeFile(msgFile, message, F1);	//scrittura messaggio su F1
+            if(strcmp(internal_msg.m_message.type, "SH") == 0){
+              semOp(semid, 0, -1);	//-1 sul semaforo di S1
 
-          //mandiamo ad S2 tramite pipe1
-          ssize_t nBys = write(pipe1[1], &message, sizeof(struct msg));
-          if(nBys != sizeof(struct msg))
-            ErrExit("write to pipe1 failed");
+              strcpy(messageSH->id, internal_msg.m_message.id);
+              strcpy(messageSH->message, internal_msg.m_message.message);
+              strcpy(messageSH->idSender, internal_msg.m_message.idSender);
+              strcpy(messageSH->idReceiver, internal_msg.m_message.idReceiver);
+              strcpy(messageSH->delS1, internal_msg.m_message.delS1);
+              strcpy(messageSH->delS2, internal_msg.m_message.delS2);
+              strcpy(messageSH->delS3, internal_msg.m_message.delS3);
+              strcpy(messageSH->type, internal_msg.m_message.type);
+
+              semOp(semid, 0, 1);
+            }
+
+          }
+
+          if(strcmp(internal_msg.m_message.idSender, "S2") == 0){
+            msgFile = get_time_departure(msgFile);
+            writeFile(msgFile, message, F1);	//scrittura messaggio su F1
+            //mandiamo ad S2 tramite pipe1
+            ssize_t nBys = write(pipe1[1], &internal_msg.m_message, internal_mSize);
+            if(nBys != internal_mSize)
+              ErrExit("write to pipe1 failed");
+
+          }
+
+          if(strcmp(internal_msg.m_message.idSender, "S3") == 0){
+            msgFile = get_time_departure(msgFile);
+            writeFile(msgFile, message, F1);	//scrittura messaggio su F1
+
+            //mandiamo ad S2 tramite pipe1
+            ssize_t nBys = write(pipe1[1], &internal_msg.m_message, internal_mSize);
+            if(nBys != internal_mSize)
+              ErrExit("write to pipe1 failed");
+          }
+
         }
 
         start_line = i + 1;
@@ -237,6 +261,7 @@ int main(int argc, char * argv[]) {
 		if(close(F1) == -1)
 			ErrExit("close");
 
+    printf("S1 exit\n");
     struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
 
     numWrite = write(pipe1[1], &final_msg, sizeof(struct msg));

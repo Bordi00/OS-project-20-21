@@ -362,6 +362,10 @@ int main(int argc, char * argv[]) {
 
     while((nBys = read(pipe1[0], &message, sizeof(internal_msg.m_message))) > 0){
 
+      if(strcmp(message.id, "-1") == 0){
+        break;
+      }
+
       strcpy(internal_msg.msgFile.time_arrival, "");
       strcpy(internal_msg.msgFile.time_departure, "");
 
@@ -422,10 +426,6 @@ int main(int argc, char * argv[]) {
           if(nBys != sizeof(internal_msg.m_message))
           ErrExit("write to pipe2 failed");
         }
-      }
-
-      if(strcmp(message.id, "-1") == 0){
-        break;
       }
     }
 
@@ -510,6 +510,11 @@ int main(int argc, char * argv[]) {
     ssize_t internal_mSize = sizeof(struct child) - sizeof(long);
 
     while((nBys = read(pipe2[0], &message, sizeof(internal_msg.m_message))) > 0){
+
+      if(strcmp(message.id, "-1") == 0){
+        break;
+      }
+
       strcpy(internal_msg.msgFile.time_arrival, "");
       strcpy(internal_msg.msgFile.time_departure, "");
 
@@ -530,12 +535,12 @@ int main(int argc, char * argv[]) {
         exit(0);
       }
 
-      if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1 ||
-      strcmp(internal_msg.m_message.id, "-1") == 0){
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){
 
       }else{
         internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
         writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F1
+
         //inviamo il messaggio alla corrispondente IPC
         if(strcmp(internal_msg.m_message.type, "Q") == 0){
           if(msgsnd(msqid, &internal_msg, sizeof(internal_msg.m_message) ,0) == -1){
@@ -577,19 +582,16 @@ int main(int argc, char * argv[]) {
 
       }
 
-      if(strcmp(message.id, "-1") == 0){
-        break;
-      }
-
     }
 
 
     while(wait(NULL) != -1){
-      if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){
 
       }else{
         internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
         writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F1
+        
         //inviamo il messaggio alla corrispondente IPC
         if(strcmp(internal_msg.m_message.type, "Q") == 0){
           if(msgsnd(msqid, &internal_msg, sizeof(internal_msg.m_message) ,0) == -1){

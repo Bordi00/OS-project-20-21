@@ -361,77 +361,27 @@ int main(int argc, char * argv[]) {
     ssize_t internal_mSize = sizeof(struct child) - sizeof(long);
 
     while((nBys = read(pipe1[0], &message, sizeof(internal_msg.m_message))) > 0){
-        printf("message %s\n", message.message);
 
-        strcpy(internal_msg.msgFile.time_arrival, "");
-        strcpy(internal_msg.msgFile.time_departure, "");
+      strcpy(internal_msg.msgFile.time_arrival, "");
+      strcpy(internal_msg.msgFile.time_departure, "");
 
-        internal_msg.msgFile = get_time_arrival(internal_msg.msgFile); //segniamo l'ora di arrivo di F0 e la scriviamo in msgF1
+      internal_msg.msgFile = get_time_arrival(internal_msg.msgFile); //segniamo l'ora di arrivo di F0 e la scriviamo in msgF1
 
-        //creo figlio che gestisce il messaggio
-        pid = fork();
+      //creo figlio che gestisce il messaggio
+      pid = fork();
 
-        if(pid == 0){ //sono nel figlio
-          sleep(atoi(message.delS2));
-          internal_msg.m_message = message;
-          internal_msg.mtype = 2;
+      if(pid == 0){ //sono nel figlio
+        sleep(atoi(message.delS2));
+        internal_msg.m_message = message;
+        internal_msg.mtype = 2;
 
-          if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){
-            ErrExit("message send failed (S2 child)");
-          }
-
-          exit(0);
+        if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){
+          ErrExit("message send failed (S2 child)");
         }
 
-        if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){
-
-        }else{
-          if(strcmp(internal_msg.m_message.idSender, "S2") == 0){
-            internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
-            writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F1
-
-            //inviamo il messaggio alla corrispondente IPC
-            if(strcmp(internal_msg.m_message.type, "Q") == 0){
-              if(msgsnd(msqid, &internal_msg, sizeof(internal_msg.m_message) ,0) == -1){
-                ErrExit("message send failed (S2)");
-              }
-            }
-
-            if(strcmp(internal_msg.m_message.type, "SH") == 0){
-              semOp(semid, 0, -1);	//-1 sul semaforo di S1
-
-              strcpy(messageSH->id, internal_msg.m_message.id);
-              strcpy(messageSH->message, internal_msg.m_message.message);
-              strcpy(messageSH->idSender, internal_msg.m_message.idSender);
-              strcpy(messageSH->idReceiver, internal_msg.m_message.idReceiver);
-              strcpy(messageSH->delS1, internal_msg.m_message.delS1);
-              strcpy(messageSH->delS2, internal_msg.m_message.delS2);
-              strcpy(messageSH->delS3, internal_msg.m_message.delS3);
-              strcpy(messageSH->type, internal_msg.m_message.type);
-
-              semOp(semid, 0, 1);
-            }
-
-          }
-
-          if(strcmp(internal_msg.m_message.idSender, "S3") == 0){
-            internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
-            writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F1
-
-            //mandiamo ad S3 tramite pipe1
-            ssize_t nBys = write(pipe2[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
-            if(nBys != sizeof(internal_msg.m_message))
-            ErrExit("write to pipe2 failed");
-          }
-        }
-
-        if(strcmp(message.id, "-1") == 0){
-        break;
+        exit(0);
       }
-    }
 
-
-    while(wait(NULL) != -1){
       if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){
 
       }else{
@@ -473,145 +423,258 @@ int main(int argc, char * argv[]) {
           ErrExit("write to pipe2 failed");
         }
       }
+
+      if(strcmp(message.id, "-1") == 0){
+        break;
+      }
     }
 
 
-  if(close(pipe1[0]) == -1){
-    ErrExit("Close of Read end of pipe1 failed (S2)");
-  }
+    while(wait(NULL) != -1){
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){
 
-  struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
+      }else{
+        if(strcmp(internal_msg.m_message.idSender, "S2") == 0){
+          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F1
 
-  numWrite = write(pipe2[1], &final_msg, sizeof(struct msg));
+          //inviamo il messaggio alla corrispondente IPC
+          if(strcmp(internal_msg.m_message.type, "Q") == 0){
+            if(msgsnd(msqid, &internal_msg, sizeof(internal_msg.m_message) ,0) == -1){
+              ErrExit("message send failed (S2)");
+            }
+          }
 
-  if(close(pipe2[1]) == -1){
-    ErrExit("Close of Write end of pipe2 failed (S2)");
-  }
+          if(strcmp(internal_msg.m_message.type, "SH") == 0){
+            semOp(semid, 0, -1);	//-1 sul semaforo di S1
 
-  exit(0);
+            strcpy(messageSH->id, internal_msg.m_message.id);
+            strcpy(messageSH->message, internal_msg.m_message.message);
+            strcpy(messageSH->idSender, internal_msg.m_message.idSender);
+            strcpy(messageSH->idReceiver, internal_msg.m_message.idReceiver);
+            strcpy(messageSH->delS1, internal_msg.m_message.delS1);
+            strcpy(messageSH->delS2, internal_msg.m_message.delS2);
+            strcpy(messageSH->delS3, internal_msg.m_message.delS3);
+            strcpy(messageSH->type, internal_msg.m_message.type);
 
-}else if(pid == 0 && pid_S[0] == 0 && pid_S[1] == 0 && pid_S[2] > 0){ //S3
+            semOp(semid, 0, 1);
+          }
 
-  if(close(pipe2[1]) == -1){
-    ErrExit("Close write end of pipe2");
-  }
+        }
 
-  int F3 = open("OutputFiles/F3.csv", O_RDWR | O_CREAT, S_IRWXU);
+        if(strcmp(internal_msg.m_message.idSender, "S3") == 0){
+          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F1
+          //mandiamo ad S3 tramite pipe1
+          ssize_t nBys = write(pipe2[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
+          if(nBys != sizeof(internal_msg.m_message))
+          ErrExit("write to pipe2 failed");
+        }
+      }
+    }
 
-  if(F3 == -1){
-    ErrExit("open F3 failed");
-  }
 
-  ssize_t numWrite = write(F3, heading, strlen(heading));
-  if(numWrite != strlen(heading)){
-    ErrExit("write F3 failed");
-  }
+    if(close(pipe1[0]) == -1){
+      ErrExit("Close of Read end of pipe1 failed (S2)");
+    }
 
-  ssize_t nBys;
-  struct msg message;
+    struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
 
-  while((nBys = read(pipe2[0], &message, sizeof(struct msg))) > 0){
-    struct container msgFile = {"","","","","",""};
+    numWrite = write(pipe2[1], &final_msg, sizeof(struct msg));
 
-    msgFile = get_time_arrival(msgFile);
-    sleep(atoi(message.delS3));   //il messaggio attende delS1 secondi prima di essere inviato
+    if(close(pipe2[1]) == -1){
+      ErrExit("Close of Write end of pipe2 failed (S2)");
+    }
 
-    msgFile = get_time_departure(msgFile);
-    writeFile(msgFile, message, F3);	//scrittura messaggio su F1
+    exit(0);
 
-    //inviamo il messaggio alla corrispondente IPC
-    if(strcmp(message.type, "Q") == 0){
-      m.m_message = message;
-      ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
-      if(msgsnd(msqid, &m, mSize ,0) == -1){
-        ErrExit("message send failed (S3)");
+  }else if(pid == 0 && pid_S[0] == 0 && pid_S[1] == 0 && pid_S[2] > 0){ //S3
+
+    if(close(pipe2[1]) == -1){
+      ErrExit("Close write end of pipe2");
+    }
+
+    int F3 = open("OutputFiles/F3.csv", O_RDWR | O_CREAT, S_IRWXU);
+
+    if(F3 == -1){
+      ErrExit("open F3 failed");
+    }
+
+    ssize_t numWrite = write(F3, heading, strlen(heading));
+    if(numWrite != strlen(heading)){
+      ErrExit("write F3 failed");
+    }
+
+    ssize_t nBys;
+    struct msg message = {"", "", "", "", "", "", "", ""};
+    ssize_t internal_mSize = sizeof(struct child) - sizeof(long);
+
+    while((nBys = read(pipe2[0], &message, sizeof(internal_msg.m_message))) > 0){
+      strcpy(internal_msg.msgFile.time_arrival, "");
+      strcpy(internal_msg.msgFile.time_departure, "");
+
+      internal_msg.msgFile = get_time_arrival(internal_msg.msgFile); //segniamo l'ora di arrivo di F0 e la scriviamo in msgF1
+
+      //creo figlio che gestisce il messaggio
+      pid = fork();
+
+      if(pid == 0){ //sono nel figlio
+        sleep(atoi(message.delS3));
+        internal_msg.m_message = message;
+        internal_msg.mtype = 3;
+
+        if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){
+          ErrExit("message send failed (S3 child)");
+        }
+
+        exit(0);
+      }
+
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1 ||
+      strcmp(internal_msg.m_message.id, "-1") == 0){
+
+      }else{
+        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+        writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F1
+        //inviamo il messaggio alla corrispondente IPC
+        if(strcmp(internal_msg.m_message.type, "Q") == 0){
+          if(msgsnd(msqid, &internal_msg, sizeof(internal_msg.m_message) ,0) == -1){
+            ErrExit("message send failed (S3)");
+          }
+        }
+
+        if(strcmp(internal_msg.m_message.type, "SH") == 0){
+          semOp(semid, 0, -1);	//-1 sul semaforo di S1
+
+          strcpy(messageSH->id, internal_msg.m_message.id);
+          strcpy(messageSH->message, internal_msg.m_message.message);
+          strcpy(messageSH->idSender, internal_msg.m_message.idSender);
+          strcpy(messageSH->idReceiver, internal_msg.m_message.idReceiver);
+          strcpy(messageSH->delS1, internal_msg.m_message.delS1);
+          strcpy(messageSH->delS2, internal_msg.m_message.delS2);
+          strcpy(messageSH->delS3, internal_msg.m_message.delS3);
+          strcpy(messageSH->type, internal_msg.m_message.type);
+
+          semOp(semid, 0, 1);
+        }
+
+        if(strcmp(message.type, "FIFO") == 0){
+          /*
+          int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY);
+
+
+          if(fifo == -1){
+            ErrExit("open (fifo) failed");
+          }
+
+          numWrite = write(fifo, &internal_msg.m_message, sizeof(internal_msg.m_message));
+
+          if(numWrite != sizeof(internal_msg.m_message)){
+            ErrExit("write on fifo failed");
+          }
+          */
+        }
+
+      }
+
+      if(strcmp(message.id, "-1") == 0){
+        break;
       }
 
     }
 
-    if(strcmp(message.type, "SH") == 0){
 
-      semOp(semid, 0, -1);	//-1 sul semaforo di S1
+    while(wait(NULL) != -1){
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){
 
-      strcpy(messageSH->id, message.id);
-      strcpy(messageSH->message, message.message);
-      strcpy(messageSH->idSender, message.idSender);
-      strcpy(messageSH->idReceiver, message.idReceiver);
-      strcpy(messageSH->delS1, message.delS1);
-      strcpy(messageSH->delS2, message.delS2);
-      strcpy(messageSH->delS3, message.delS3);
-      strcpy(messageSH->type, message.type);
+      }else{
+        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+        writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F1
+        //inviamo il messaggio alla corrispondente IPC
+        if(strcmp(internal_msg.m_message.type, "Q") == 0){
+          if(msgsnd(msqid, &internal_msg, sizeof(internal_msg.m_message) ,0) == -1){
+            ErrExit("message send failed (S3)");
+          }
+        }
 
-      semOp(semid, 0, 1);
-    }
+        if(strcmp(internal_msg.m_message.type, "SH") == 0){
+          semOp(semid, 0, -1);	//-1 sul semaforo di S1
 
-    if(strcmp(message.type, "FIFO") == 0){
+          strcpy(messageSH->id, internal_msg.m_message.id);
+          strcpy(messageSH->message, internal_msg.m_message.message);
+          strcpy(messageSH->idSender, internal_msg.m_message.idSender);
+          strcpy(messageSH->idReceiver, internal_msg.m_message.idReceiver);
+          strcpy(messageSH->delS1, internal_msg.m_message.delS1);
+          strcpy(messageSH->delS2, internal_msg.m_message.delS2);
+          strcpy(messageSH->delS3, internal_msg.m_message.delS3);
+          strcpy(messageSH->type, internal_msg.m_message.type);
 
-      int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY);
+          semOp(semid, 0, 1);
+        }
 
-      if(fifo == -1){
-        ErrExit("open (fifo) failed");
+        if(strcmp(message.type, "FIFO") == 0){
+
+          int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY);
+
+          if(fifo == -1){
+            ErrExit("open (fifo) failed");
+          }
+
+          numWrite = write(fifo, &internal_msg.m_message, sizeof(internal_msg.m_message));
+
+          if(numWrite != sizeof(internal_msg.m_message)){
+            ErrExit("write on fifo failed");
+          }
+
+        }
       }
-
-      numWrite = write(fifo, &message, sizeof(struct msg));
-
-      if(numWrite != sizeof(struct msg)){
-        ErrExit("write on fifo failed");
-      }
-
     }
 
-    if(strcmp(message.id, "-1") == 0){
-      break;
+    if(close(F3) == -1){
+      ErrExit("Close F3 failed");
     }
 
+    if(close(pipe2[0]) == -1){
+      ErrExit("Close of read end of pipe2 failed (S3)");
+    }
+
+    exit(0);
+
+  }else if(pid != 0 && pid_S[0] > 0 && pid_S[1] > 0 && pid_S[2] > 0){  //Padre
+    writeF8(pid_S);
+
+    // parent process must run here!
+    int status = 0;
+    int i = 0;
+
+    // get termination status of each created subprocess.
+    while((pid = wait(&status)) != -1){
+      printf("Child %d exited, status = %d\n", pid_S[i], WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
+      i++;
+    }
+
+    if(close(pipe1[1]) == -1){
+      ErrExit("close pipe1 write end in father failed");
+    }
+
+    if(close(pipe1[0]) == -1){
+      ErrExit("close pipe1 read end in father failed");
+    }
+
+    if(close(pipe2[1]) == -1){
+      ErrExit("close pipe2 write end in father failed");
+    }
+    if(close(pipe2[0]) == -1){
+      ErrExit("close pipe2 read end in father failed");
+    }
+
+    close(fifo);
+    free_shared_memory(messageSH);
+
+    if(semctl(semid, 0, IPC_RMID, 0) == -1)
+    ErrExit("semctl failed");
+
+    return 0;
+
   }
-
-  if(close(F3) == -1){
-    ErrExit("Close F3 failed");
-  }
-
-  if(close(pipe2[0]) == -1){
-    ErrExit("Close of read end of pipe2 failed (S3)");
-  }
-
-  exit(0);
-
-}else if(pid != 0 && pid_S[0] > 0 && pid_S[1] > 0 && pid_S[2] > 0){  //Padre
-  writeF8(pid_S);
-
-  // parent process must run here!
-  int status = 0;
-  int i = 0;
-
-  // get termination status of each created subprocess.
-  while((pid = wait(&status)) != -1){
-    printf("Child %d exited, status = %d\n", pid_S[i], WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
-    i++;
-  }
-
-  if(close(pipe1[1]) == -1){
-    ErrExit("close pipe1 write end in father failed");
-  }
-
-  if(close(pipe1[0]) == -1){
-    ErrExit("close pipe1 read end in father failed");
-  }
-
-  if(close(pipe2[1]) == -1){
-    ErrExit("close pipe2 write end in father failed");
-  }
-  if(close(pipe2[0]) == -1){
-    ErrExit("close pipe2 read end in father failed");
-  }
-
-  close(fifo);
-  free_shared_memory(messageSH);
-
-  if(semctl(semid, 0, IPC_RMID, 0) == -1)
-  ErrExit("semctl failed");
-
-  return 0;
-
-}
 }

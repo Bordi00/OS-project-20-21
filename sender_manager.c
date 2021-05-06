@@ -203,7 +203,6 @@ int main(int argc, char * argv[]) {
         if(pid == 0){ //sono nel figlio
           sleep(atoi(message.delS1));
           internal_msg.m_message = message;
-  
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){
             ErrExit("message send failed (S1 child)");
           }
@@ -375,6 +374,7 @@ int main(int argc, char * argv[]) {
         if(pid == 0){ //sono nel figlio
           sleep(atoi(message.delS2));
           internal_msg.m_message = message;
+          internal_msg.mtype = 2;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){
             ErrExit("message send failed (S2 child)");
@@ -383,7 +383,7 @@ int main(int argc, char * argv[]) {
           exit(0);
         }
 
-        if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){
+        if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){
 
         }else{
           if(strcmp(internal_msg.m_message.idSender, "S2") == 0){
@@ -432,7 +432,7 @@ int main(int argc, char * argv[]) {
 
 
     while(wait(NULL) != -1){
-      if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){
 
       }else{
         if(strcmp(internal_msg.m_message.idSender, "S2") == 0){

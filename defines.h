@@ -48,7 +48,7 @@ struct msg_row{
 }row[3];
 
 // dichiarazione funzione per riempire la struct con i relativi campi in F0
-struct msg fill_structure(char buffer[], struct msg message, int j);
+struct msg fill_structure(char buffer[],int j);
 //dichiarazione funzione che riempie il campo [time_arrival] di msgF1 con l'orario locale
 struct container get_time_arrival(struct container msgFile);
 //dichiarazione funzione che riempie il campo [time_departure] di msgF1 con l'orario locale

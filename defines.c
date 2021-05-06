@@ -5,7 +5,9 @@
 #include "defines.h"
 
 // funzione per riempire la struct con i relativi campi in F0
-struct msg fill_structure(char buffer[], struct msg message, int j){
+struct msg fill_structure(char buffer[], int j){
+
+		struct msg message = {"", "", "", "", "", "", "", ""};
 
 		int counter = 0;
 		int index = 0;
@@ -53,7 +55,7 @@ struct msg fill_structure(char buffer[], struct msg message, int j){
 					}
 			}
 
-			
+
       return message;
 }
 
@@ -102,10 +104,13 @@ struct container get_time_departure(struct container msgFile){
 	strcat(msgFile.time_departure, ":");
 	strcat(msgFile.time_departure, sec_t);
 
+	msgFile.time_departure[8] = '\0';
+
   return msgFile;
 }
 
 void writeFile(struct container msgFile, struct msg message, int fd){
+
   ssize_t numWrite;
 
   strcpy(msgFile.id, message.id);
@@ -162,7 +167,7 @@ void writeFile(struct container msgFile, struct msg message, int fd){
         if (numWrite != sizeof(char))
           ErrExit("write");
 
-			//	printf("%s\n", message.type);
+				//printf("message arrived %s , td %s\n", message.message, msgFile.time_departure);
 }
 
 void writeF8(int pid_S[3]){

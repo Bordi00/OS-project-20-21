@@ -24,8 +24,6 @@ int main(int argc, char * argv[]) {
     struct msg m_message;
   }m;
 
-  m.mtype = 1;
-
   key_t msgKey = 01110001;
   int msqid = msgget(msgKey, IPC_CREAT | S_IRUSR | S_IWUSR);
 
@@ -35,7 +33,7 @@ int main(int argc, char * argv[]) {
   ssize_t internal_mSize = sizeof(struct mymsg) - sizeof(long);
 
 while(1){
-  if(msgrcv(msqid, &m, internal_mSize, 1, IPC_NOWAIT) == -1){
+  if(msgrcv(msqid, &m, internal_mSize, 0, IPC_NOWAIT) == -1){
 
   }else{
     printf("receiver_manager message %s\n", m.m_message.message);

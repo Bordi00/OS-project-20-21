@@ -32,7 +32,7 @@ int main(int argc, char * argv[]) {
   union semun arg;
   arg.array = semInitVal;
 
-  if(semctl(semid, 0, GETALL, arg) == -1){
+  if(semctl(semid, 0, GETVAL, arg) == -1){
     ErrExit("semctl failed Receiver");
   }
 
@@ -44,11 +44,11 @@ int main(int argc, char * argv[]) {
     ErrExit("semget failed");
   }
 
-  unsigned short semInitVal2[1];
+  unsigned short semInitVal2[] = {0};
   union semun arg2;
   arg2.array = semInitVal2;
 
-  if(semctl(semid2, 0, GETALL, arg2) == -1){
+  if(semctl(semid2, 0, SETALL, arg2) == -1){
     ErrExit("semctl failed");
   }
   //================================================================================

@@ -91,6 +91,7 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+
   //==================================================================================
   //creazione dei semafori
 
@@ -101,11 +102,27 @@ int main(int argc, char * argv[]) {
     ErrExit("semget failed");
   }
 
-  unsigned short semInitVal[] = {1,0};
+  unsigned short semInitVal[] = {1};
   union semun arg;
   arg.array = semInitVal;
 
   if(semctl(semid, 0, SETALL, arg) == -1){
+    ErrExit("semctl failed");
+  }
+
+  //2nd semaphore set
+  key_t semKey2 = ftok("receiver_manager.c", 'H');
+  int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid2 == -1){
+    ErrExit("semget failed");
+  }
+
+  unsigned short semInitVal2[1];
+  union semun arg2;
+  arg2.array = semInitVal2;
+
+  if(semctl(semid2, 0, GETVAL, arg2) == -1){
     ErrExit("semctl failed");
   }
 
@@ -667,6 +684,8 @@ int main(int argc, char * argv[]) {
           }
 
         }
+        printf("semid: %d\n", semid);
+        printf("semid2: %d\n", semid2);
 
         if(strcmp(internal_msg.m_message.type, "SH") == 0){
           semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
@@ -682,7 +701,7 @@ int main(int argc, char * argv[]) {
           strcpy(messageSH->type, internal_msg.m_message.type);
 
           //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-          semOp(semid, 1, 1);
+          semOp(semid2, 0, 1);
         }
 
         if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
@@ -738,6 +757,7 @@ int main(int argc, char * argv[]) {
           semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
           printSemaphoresValue(semid);
+          printSemaphoresValue(semid2);
           //scrivo sulla shared memory il  messaggio
           strcpy(messageSH->id, internal_msg.m_message.id);
           strcpy(messageSH->message, internal_msg.m_message.message);
@@ -749,7 +769,7 @@ int main(int argc, char * argv[]) {
           strcpy(messageSH->type, internal_msg.m_message.type);
 
           //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-          semOp(semid, 1, 1);
+          semOp(semid2, 0, 1);
         }
 
         if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO

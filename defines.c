@@ -237,7 +237,7 @@ void sigHandler(int sig){
 }
 
 void printSemaphoresValue (int semid) {
-    unsigned short semVal[2];
+    unsigned short semVal[1];
     union semun arg;
     arg.array = semVal;
 

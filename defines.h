@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <time.h>
+#include <errno.h>
 #include "err_exit.h"
 
 #define BUFFER_SZ 1000
@@ -57,3 +58,5 @@ struct container get_time_departure(struct container msgFile);
 void writeFile(struct container msgF1, struct msg message, int fd);
 //dichiarazione funzione per la scrittura di F8.csv
 void writeF8(int pid_S[3]);
+
+void sigHandler(int sig);

@@ -231,3 +231,7 @@ void writeF8(int pid_S[3]){
 		ErrExit("Close F8 failed");
 	}
 }
+
+void sigHandler(int sig){
+  	printf("Sigalarm catched\n");
+}

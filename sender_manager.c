@@ -11,8 +11,11 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 
-
 int main(int argc, char * argv[]) {
+
+  if(signal(SIGALRM, sigHandler) == SIG_ERR){
+    ErrExit("changing signal handler failed");
+  }
   //================================================================================
   //dichiarazione e inizializzazione dell'array che conterrà i pid dei processi  S1, S2, S3
 
@@ -41,7 +44,7 @@ int main(int argc, char * argv[]) {
   //creazione fifo
 
   int fifo;
-  if((fifo = mkfifo("OutputFiles/my_fifo.txt", S_IRUSR | S_IWUSR | S_IRWXO)) == -1){
+  if((fifo = mkfifo("OutputFiles/my_fifo.txt", S_IRWXO | S_IRWXU)) == -1){
     ErrExit("create fifo failed");
   }
 
@@ -52,7 +55,6 @@ int main(int argc, char * argv[]) {
   int shmid;
   shmid = alloc_shared_memory(shmKey, sizeof(struct message));
   struct msg *messageSH = (struct msg *)get_shared_memory(shmid, 0);
-
   //==================================================================================
   //creazione della message queue tra Senders e Receivers
 
@@ -231,19 +233,19 @@ int main(int argc, char * argv[]) {
 
               //cambiamo l'mtype in base a chi deve ricevere il messaggio,
               // in modo che sia più facile al processo receiver capire quali messaggi sono destinati a se stesso
-              if(strcmp(m.m_message.idReceiver, "R1")){
+              if(strcmp(m.m_message.idReceiver, "R1") == 0){
                 m.mtype = 1;
               }
 
-              if(strcmp(m.m_message.idReceiver, "R2")){
+              if(strcmp(m.m_message.idReceiver, "R2") == 0){
                 m.mtype = 2;
               }
 
-              if(strcmp(m.m_message.idReceiver, "R3")){
+              if(strcmp(m.m_message.idReceiver, "R3") == 0){
                 m.mtype = 3;
               }
 
-              //infine inviamo il messaggio alla msg queue
+              //infine inviamo il messaggio alla msg queue mymsg
               if(msgsnd(msqid, &m, mSize ,0) == -1){
                 ErrExit("message send failed (S1)");
               }
@@ -310,15 +312,15 @@ int main(int argc, char * argv[]) {
 
             //cambiamo l'mtype in base a chi deve ricevere il messaggio,
             // in modo che sia più facile al processo receiver capire quali messaggi sono destinati a se stesso
-            if(strcmp(m.m_message.idReceiver, "R1")){
+            if(strcmp(m.m_message.idReceiver, "R1") == 0){
               m.mtype = 1;
             }
 
-            if(strcmp(m.m_message.idReceiver, "R2")){
+            if(strcmp(m.m_message.idReceiver, "R2") == 0){
               m.mtype = 2;
             }
 
-            if(strcmp(m.m_message.idReceiver, "R3")){
+            if(strcmp(m.m_message.idReceiver, "R3") == 0){
               m.mtype = 3;
             }
 
@@ -456,15 +458,15 @@ int main(int argc, char * argv[]) {
 
             //cambiamo l'mtype in base a chi deve ricevere il messaggio,
             // in modo che sia più facile al processo receiver capire quali messaggi sono destinati a se stesso
-            if(strcmp(m.m_message.idReceiver, "R1")){
+            if(strcmp(m.m_message.idReceiver, "R1") == 0){
               m.mtype = 1;
             }
 
-            if(strcmp(m.m_message.idReceiver, "R2")){
+            if(strcmp(m.m_message.idReceiver, "R2") == 0){
               m.mtype = 2;
             }
 
-            if(strcmp(m.m_message.idReceiver, "R3")){
+            if(strcmp(m.m_message.idReceiver, "R3") == 0){
               m.mtype = 3;
             }
 
@@ -520,15 +522,15 @@ int main(int argc, char * argv[]) {
 
             //cambiamo l'mtype in base a chi deve ricevere il messaggio,
             // in modo che sia più facile al processo receiver capire quali messaggi sono destinati a se stesso
-            if(strcmp(m.m_message.idReceiver, "R1")){
+            if(strcmp(m.m_message.idReceiver, "R1") == 0){
               m.mtype = 1;
             }
 
-            if(strcmp(m.m_message.idReceiver, "R2")){
+            if(strcmp(m.m_message.idReceiver, "R2") == 0){
               m.mtype = 2;
             }
 
-            if(strcmp(m.m_message.idReceiver, "R3")){
+            if(strcmp(m.m_message.idReceiver, "R3") == 0){
               m.mtype = 3;
             }
 
@@ -641,22 +643,21 @@ int main(int argc, char * argv[]) {
       }else{ //altrimenti guardiamo in che modo dobbiamo inviarlo
         internal_msg.msgFile = get_time_departure(internal_msg.msgFile);// registriamo il tempo di partenza del messaggio
         writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F3
-
         //inviamo il messaggio alla corrispondente IPC
         if(strcmp(internal_msg.m_message.type, "Q") == 0){  // MESSAGE QUEUE
           m.m_message = internal_msg.m_message; //salviamo il messaggio nell'apposito campo della struttura di trasmissione
 
           //cambiamo l'mtype in base a chi deve ricevere il messaggio,
           // in modo che sia più facile al processo receiver capire quali messaggi sono destinati a se stesso
-          if(strcmp(m.m_message.idReceiver, "R1")){
+          if(strcmp(m.m_message.idReceiver, "R1") == 0){
             m.mtype = 1;
           }
 
-          if(strcmp(m.m_message.idReceiver, "R2")){
+          if(strcmp(m.m_message.idReceiver, "R2") == 0){
             m.mtype = 2;
           }
 
-          if(strcmp(m.m_message.idReceiver, "R3")){
+          if(strcmp(m.m_message.idReceiver, "R3") == 0){
             m.mtype = 3;
           }
 
@@ -664,6 +665,7 @@ int main(int argc, char * argv[]) {
           if(msgsnd(msqid, &m, mSize ,0) == -1){
             ErrExit("message send failed (S1)");
           }
+
         }
 
         if(strcmp(internal_msg.m_message.type, "SH") == 0){
@@ -683,10 +685,9 @@ int main(int argc, char * argv[]) {
           semOp(semid, 0, 1);
         }
 
-        if(strcmp(message.type, "FIFO") == 0){  //FIFO
-          /*
-          int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY); //apro il file descriptor relativo alla FIFO in sola scrittura
+        if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
 
+          int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY); //apro il file descriptor relativo alla FIFO in sola scrittura
 
           if(fifo == -1){
             ErrExit("open (fifo) failed");
@@ -697,7 +698,7 @@ int main(int argc, char * argv[]) {
           if(numWrite != sizeof(internal_msg.m_message)){
             ErrExit("write on fifo failed");
           }
-          */
+
         }
       }
     }
@@ -707,22 +708,22 @@ int main(int argc, char * argv[]) {
       }else{
         internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
         writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F3
-        
+
         //inviamo il messaggio alla corrispondente IPC
         if(strcmp(internal_msg.m_message.type, "Q") == 0){  //MESSAGE QUEUE
           m.m_message = internal_msg.m_message; //salviamo il messaggio nell'apposito campo della struttura di trasmissione
 
           //cambiamo l'mtype in base a chi deve ricevere il messaggio,
           // in modo che sia più facile al processo receiver capire quali messaggi sono destinati a se stesso
-          if(strcmp(m.m_message.idReceiver, "R1")){
+          if(strcmp(m.m_message.idReceiver, "R1") == 0){
             m.mtype = 1;
           }
 
-          if(strcmp(m.m_message.idReceiver, "R2")){
+          if(strcmp(m.m_message.idReceiver, "R2") == 0){
             m.mtype = 2;
           }
 
-          if(strcmp(m.m_message.idReceiver, "R3")){
+          if(strcmp(m.m_message.idReceiver, "R3") == 0){
             m.mtype = 3;
           }
 
@@ -730,6 +731,7 @@ int main(int argc, char * argv[]) {
           if(msgsnd(msqid, &m, mSize ,0) == -1){
             ErrExit("message send failed (S1)");
           }
+
         }
 
         if(strcmp(internal_msg.m_message.type, "SH") == 0){ //SHARED MEMORY
@@ -749,7 +751,7 @@ int main(int argc, char * argv[]) {
           semOp(semid, 0, 1);
         }
 
-        if(strcmp(message.type, "FIFO") == 0){  //FIFO
+        if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
 
           int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY); //apro il file descriptor relativo alla FIFO in sola scrittura
 
@@ -766,6 +768,7 @@ int main(int argc, char * argv[]) {
         }
       }
     }
+
 
     if(close(F3) == -1){  //chiusura file descriptor F3
       ErrExit("Close F3 failed");
@@ -789,7 +792,7 @@ int main(int argc, char * argv[]) {
 
     // aspettiamo la terminazione di S1, S2, S3
     while((pid = wait(&status)) != -1){
-      printf("Child %d exited, status = %d\n", pid_S[i], WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
+      printf("S%i %d exited, status = %d\n", i + 1, pid_S[i], WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
       i++;
     }
 
@@ -810,6 +813,12 @@ int main(int argc, char * argv[]) {
       ErrExit("close pipe2 read end in father failed");
     }
 
+    semOp(semid, 0, -1);
+
+    strcpy(messageSH->id, "-1");
+
+    semOp(semid, 0, 1);
+    
     //chiusura lato scrittura fifo
     close(fifo);
 

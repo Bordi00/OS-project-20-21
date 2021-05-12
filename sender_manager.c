@@ -95,13 +95,13 @@ int main(int argc, char * argv[]) {
   //creazione dei semafori
 
   key_t semKey = 01110011;
-  int semid = semget(semKey, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semid = semget(semKey, 2, IPC_CREAT | S_IRUSR | S_IWUSR);
 
   if(semid == -1){
     ErrExit("semget failed");
   }
 
-  unsigned short semInitVal[] = {1};
+  unsigned short semInitVal[] = {1,0};
   union semun arg;
   arg.array = semInitVal;
 
@@ -682,7 +682,7 @@ int main(int argc, char * argv[]) {
           strcpy(messageSH->type, internal_msg.m_message.type);
 
           //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-          semOp(semid, 0, 1);
+          semOp(semid, 1, 1);
         }
 
         if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
@@ -737,6 +737,7 @@ int main(int argc, char * argv[]) {
         if(strcmp(internal_msg.m_message.type, "SH") == 0){ //SHARED MEMORY
           semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
+          printSemaphoresValue(semid);
           //scrivo sulla shared memory il  messaggio
           strcpy(messageSH->id, internal_msg.m_message.id);
           strcpy(messageSH->message, internal_msg.m_message.message);
@@ -748,7 +749,7 @@ int main(int argc, char * argv[]) {
           strcpy(messageSH->type, internal_msg.m_message.type);
 
           //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-          semOp(semid, 0, 1);
+          semOp(semid, 1, 1);
         }
 
         if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
@@ -817,17 +818,13 @@ int main(int argc, char * argv[]) {
 
     strcpy(messageSH->id, "-1");
 
-    semOp(semid, 0, 1);
-    
+    semOp(semid, 1, 1);
+
     //chiusura lato scrittura fifo
     close(fifo);
 
     //detach della shared memory
     free_shared_memory(messageSH);
-
-    //rimozione del semaforo
-    if(semctl(semid, 0, IPC_RMID, 0) == -1)
-      ErrExit("semctl failed");
 
     //rimozione della msg queue
     if(msgctl(mqid, IPC_RMID, NULL) == -1){

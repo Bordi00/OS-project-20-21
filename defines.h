@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <time.h>
 #include <errno.h>
+#include "semaphore.h"
 #include "err_exit.h"
 
 #define BUFFER_SZ 1000
@@ -60,3 +61,5 @@ void writeFile(struct container msgF1, struct msg message, int fd);
 void writeF8(int pid_S[3]);
 
 void sigHandler(int sig);
+
+void printSemaphoresValue (int semid);

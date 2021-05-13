@@ -131,22 +131,7 @@ int main(int argc, char * argv[]) {
   //==============================ESECUZIONE R3 ========================================//
 
   if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
-    /*
-    //apro il file descriptor relativo alla FIFO in sola lettura
-    bool finish = false;
 
-    while(finish == false){
-      if(strcmp(messageSH->id, "null") == 0){
-        printf("SPECIAL message with id %s arrived in RM via SH\n",
-        messageSH->id);
-        finish = true;
-      }else{
-        printf("message %s with id %s arrived in RM via SH\n", messageSH->message,
-        messageSH->id);
-        messageSH++;
-      }
-    }
-    */
     if (close(pipe3[0]) == -1) {
       ErrExit("Close of Read hand of pipe2 failed.\n");
     }

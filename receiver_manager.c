@@ -18,39 +18,6 @@ int main(int argc, char * argv[]) {
     ErrExit("changing signal handler failed");
   }
 
-  //==================================================================================
-  //creazione dei semafori
-
-  key_t semKey = 01110011;
-  int semid = semget(semKey, 2, IPC_CREAT | S_IRUSR | S_IWUSR);
-
-  if(semid == -1){
-    ErrExit("semget failed Reicever");
-  }
-
-  unsigned short semInitVal[1];
-  union semun arg;
-  arg.array = semInitVal;
-
-  if(semctl(semid, 0, GETVAL, arg) == -1){
-    ErrExit("semctl failed Receiver");
-  }
-
-  //2nd semaphore set
-  key_t semKey2 = ftok("receiver_manager.c", 'H');
-  int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
-
-  if(semid2 == -1){
-    ErrExit("semget failed");
-  }
-
-  unsigned short semInitVal2[] = {0};
-  union semun arg2;
-  arg2.array = semInitVal2;
-
-  if(semctl(semid2, 0, SETALL, arg2) == -1){
-    ErrExit("semctl failed");
-  }
   //================================================================================
   //dichiarazione e inizializzazione dell'array che conterrà i pid dei processi  R1, R2, R3
 
@@ -164,9 +131,22 @@ int main(int argc, char * argv[]) {
   //==============================ESECUZIONE R3 ========================================//
 
   if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
-
+    /*
     //apro il file descriptor relativo alla FIFO in sola lettura
+    bool finish = false;
 
+    while(finish == false){
+      if(strcmp(messageSH->id, "null") == 0){
+        printf("SPECIAL message with id %s arrived in RM via SH\n",
+        messageSH->id);
+        finish = true;
+      }else{
+        printf("message %s with id %s arrived in RM via SH\n", messageSH->message,
+        messageSH->id);
+        messageSH++;
+      }
+    }
+    */
     if (close(pipe3[0]) == -1) {
       ErrExit("Close of Read hand of pipe2 failed.\n");
     }
@@ -209,21 +189,17 @@ int main(int argc, char * argv[]) {
       }
     }
 
-    bool finish = false;
+  //  printf("Receiver esce dal controllo della MSQ\n");
+  printf("message %s read by Receiver in SH\n", messageSH->message);
+  messageSH++;
+  sleep(3);
+  printf("message %s read by Receiver in SH\n", messageSH->message);
+  messageSH++;
+  sleep(3);
+  messageSH = (struct msg *) get_shared_memory(shmid, SHM_RDONLY);
 
-    while(finish == false){
-      printf("ready for message\n");
-      semOp(semid2, 0, -1);
-      printSemaphoresValue(semid);
-      if(strcmp(messageSH->id, "-1") == 0){
-        finish = true;
-      }else{
-        printf("message %s with id %s arrived in RM via SH\n", messageSH->message,
-        messageSH->id);
-      }
-      semOp(semid, 0, 1);
-      printSemaphoresValue(semid);
-    }
+  if(strcmp(messageSH->id, "null") == 0)
+  printf("Special message with id %s read by Receiver in SH\n", messageSH->id);
 
   }else if(pid != 0 && pid_R[0] > 0 && pid_R[1] > 0 && pid_R[2] > 0){
     int status;
@@ -246,10 +222,6 @@ int main(int argc, char * argv[]) {
     if(msgctl(mqid, IPC_RMID, NULL) == -1){
       ErrExit("close of MSG QUEUE beetween Receivers and children failed");
     }
-
-    //rimozione del semaforo
-    if(semctl(semid, 0, IPC_RMID, 0) == -1)
-      ErrExit("semctl failed");
 
   }
 }

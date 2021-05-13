@@ -96,7 +96,7 @@ int main(int argc, char * argv[]) {
   //creazione dei semafori
 
   key_t semKey = 01110011;
-  int semid = semget(semKey, 2, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semid = semget(semKey, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
 
   if(semid == -1){
     ErrExit("semget failed");
@@ -109,23 +109,6 @@ int main(int argc, char * argv[]) {
   if(semctl(semid, 0, SETALL, arg) == -1){
     ErrExit("semctl failed");
   }
-
-  //2nd semaphore set
-  key_t semKey2 = ftok("receiver_manager.c", 'H');
-  int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
-
-  if(semid2 == -1){
-    ErrExit("semget failed");
-  }
-
-  unsigned short semInitVal2[1];
-  union semun arg2;
-  arg2.array = semInitVal2;
-
-  if(semctl(semid2, 0, GETVAL, arg2) == -1){
-    ErrExit("semctl failed");
-  }
-
 
   //===================================================================================
   //generazione dei processi figlio
@@ -684,10 +667,9 @@ int main(int argc, char * argv[]) {
           }
 
         }
-        printf("semid: %d\n", semid);
-        printf("semid2: %d\n", semid2);
 
         if(strcmp(internal_msg.m_message.type, "SH") == 0){
+
           semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
           //scrivo sulla shared memory il  messaggio
@@ -700,8 +682,10 @@ int main(int argc, char * argv[]) {
           strcpy(messageSH->delS3, internal_msg.m_message.delS3);
           strcpy(messageSH->type, internal_msg.m_message.type);
 
+          printf("message %s written on SH by Sender\n", messageSH->message);
+          messageSH++;
           //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-          semOp(semid2, 0, 1);
+          semOp(semid, 0, 1);
         }
 
         if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
@@ -754,10 +738,9 @@ int main(int argc, char * argv[]) {
         }
 
         if(strcmp(internal_msg.m_message.type, "SH") == 0){ //SHARED MEMORY
+
           semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
-          printSemaphoresValue(semid);
-          printSemaphoresValue(semid2);
           //scrivo sulla shared memory il  messaggio
           strcpy(messageSH->id, internal_msg.m_message.id);
           strcpy(messageSH->message, internal_msg.m_message.message);
@@ -768,8 +751,12 @@ int main(int argc, char * argv[]) {
           strcpy(messageSH->delS3, internal_msg.m_message.delS3);
           strcpy(messageSH->type, internal_msg.m_message.type);
 
+          printf("message %s written on SH by Sender\n", messageSH->message);
+
+          messageSH++;
+
           //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-          semOp(semid2, 0, 1);
+          semOp(semid, 0, 1);
         }
 
         if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
@@ -789,7 +776,6 @@ int main(int argc, char * argv[]) {
         }
       }
     }
-
 
     if(close(F3) == -1){  //chiusura file descriptor F3
       ErrExit("Close F3 failed");
@@ -834,11 +820,7 @@ int main(int argc, char * argv[]) {
       ErrExit("close pipe2 read end in father failed");
     }
 
-    semOp(semid, 0, -1);
-
-    strcpy(messageSH->id, "-1");
-
-    semOp(semid, 1, 1);
+    strcpy(messageSH->id, "null");
 
     //chiusura lato scrittura fifo
     close(fifo);
@@ -850,6 +832,10 @@ int main(int argc, char * argv[]) {
     if(msgctl(mqid, IPC_RMID, NULL) == -1){
       ErrExit("close of MSG QUEUE beetween Senders and children failed");
     }
+
+    //rimozione del semaforo
+    if(semctl(semid, 0, IPC_RMID, 0) == -1)
+      ErrExit("semctl failed");
 
     return 0; //terminazione di sender_manager
 

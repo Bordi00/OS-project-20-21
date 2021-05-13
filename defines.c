@@ -247,6 +247,6 @@ void printSemaphoresValue (int semid) {
 
     // print the semaphore's value
     printf("semaphore set state:\n");
-    for (int i = 0; i < 2; i++)
-        printf("id: %d --> %d\n", i, semVal[i]);
+    for (int i = 0; i < 1; i++)
+        printf("id: %d --> %d\n", semid, semVal[i]);
 }

@@ -1,5 +1,9 @@
 ID;Message;IDSender;IDReceiver;DelS1;DelS2;DelS3;Type
-1;Ciao;S3;R3;2;5;3;Q
+1;Ciao;S1;R3;2;5;3;Q
 2;Come va?;S3;R3;1;1;1;FIFO
-3;MyMsg;S3;R3;3;2;4;SH
+3;MyMsg;S2;R3;3;2;4;SH
 4;OurMsg;S3;R3;2;3;2;SH
+5;Amico;S3;R3;2;4;1;FIFO
+6;Tempo;S3;R3;5;4;7;Q
+7;Oggi;S3;R3;3;2;2;FIFO
+8;Arrivederci;S1;R3;2;4;1;SH

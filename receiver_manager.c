@@ -46,7 +46,7 @@ int main(int argc, char * argv[]) {
   key_t shmKey = 01101101;
   int shmid;
   shmid = alloc_shared_memory(shmKey, sizeof(struct message));
-  struct msg *messageSH = (struct msg *) get_shared_memory(shmid, SHM_RDONLY);
+  struct message *messageSH = (struct message *) get_shared_memory(shmid, SHM_RDONLY);
 
   //==================================================================================
   //collegamento alla message queue tra Senders e Receivers
@@ -64,6 +64,7 @@ int main(int argc, char * argv[]) {
     ErrExit("msgget failed");
   }
 
+  ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
 
   //==================================================================================
   //creazione della message queue tra Receiver e i loro figli
@@ -72,7 +73,7 @@ int main(int argc, char * argv[]) {
     long mtype;
     struct msg m_message;
     struct container msgFile;
-  } internal_msg;
+  }internal_msg;
 
   internal_msg.mtype = 1;
 
@@ -83,6 +84,7 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+  ssize_t internal_mSize = sizeof(struct child) - sizeof(long);
   //===================================================================
   //generazione di R1, R2, R3
 
@@ -146,45 +148,150 @@ int main(int argc, char * argv[]) {
       ErrExit("write F2 failed");
     }
 
-    int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY);
+    int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
     ssize_t nBys;
+    bool conditions[3] = {false};
 
-    while ((nBys = read(fifo, &internal_msg.m_message, sizeof(struct msg))) > 0){
 
-      strcpy(internal_msg.msgFile.time_arrival, "");
-      strcpy(internal_msg.msgFile.time_departure, "");
+    while (conditions[0] == false || conditions[1] == false || conditions[2] == false){
 
-      printf("%s %s\n", internal_msg.m_message.message, internal_msg.m_message.id);
+      internal_msg.msgFile = init_container(internal_msg.msgFile);
+      internal_msg.m_message = init_msg(internal_msg.m_message);
+
+      //========================FIFO=============================//
+      nBys = read(fifo, &internal_msg.m_message, sizeof(struct msg));
+      if(nBys > 0){
+        printf("message %s with id %s arrived in RM via FIFO\n", internal_msg.m_message.message, internal_msg.m_message.id);
+        internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
+
+        pid = fork();
+
+        if(pid == 0){
+          sleep(atoi(internal_msg.m_message.delS3));
+          internal_msg.mtype = 3;
+
+          if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
+            ErrExit("message send failed (R3 child)");
+          }
+
+          exit(0);
+        }
+      }else if(nBys == 0){
+        conditions[0] = true;
+      }
+
+      internal_msg.msgFile = init_container(internal_msg.msgFile);
+      internal_msg.m_message = init_msg(internal_msg.m_message);
+
+      //========================MSQ=============================//
+      if(msgrcv(msqid, &m, mSize, 3, IPC_NOWAIT) == -1){
+
+      }else{
+        if(strcmp(m.m_message.id, "null") == 0){
+          conditions[1] = true;
+        }else{
+          printf("message %s arrived in RM via MQ\n", m.m_message.message);
+          internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
+
+          pid = fork();
+
+          if(pid == 0){
+            internal_msg.m_message = m.m_message;
+            if(strcmp(internal_msg.m_message.delS3, "-") != 0)
+              sleep(atoi(internal_msg.m_message.delS3));
+
+            internal_msg.mtype = 3;
+
+            if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
+              ErrExit("message send failed (R3 child)");
+            }
+
+            exit(0);
+          }
+        }
+      }
+
+      internal_msg.msgFile = init_container(internal_msg.msgFile);
+      internal_msg.m_message = init_msg(internal_msg.m_message);
+
+      //========================SHARED MEMORY=============================//
+      if(strcmp(messageSH->idReceiver, "R3") == 0){
+        //scrivo sulla shared memory il  messaggio
+        strcpy(internal_msg.m_message.id, messageSH->id);
+        strcpy(internal_msg.m_message.message, messageSH->message);
+        strcpy(internal_msg.m_message.idSender, messageSH->idSender);
+        strcpy(internal_msg.m_message.idReceiver, messageSH->idReceiver);
+        strcpy(internal_msg.m_message.delS1, messageSH->delS1);
+        strcpy(internal_msg.m_message.delS2, messageSH->delS2);
+        strcpy(internal_msg.m_message.delS3, messageSH->delS3);
+        strcpy(internal_msg.m_message.type, messageSH->type);
+
+        messageSH++;
+
+        internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
+
+        pid = fork();
+
+        if(pid == 0){
+          if(strcmp(internal_msg.m_message.delS3, "-") != 0)
+            sleep(atoi(internal_msg.m_message.delS3));
+
+          internal_msg.mtype = 3;
+
+          if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
+            ErrExit("message send failed (R3 child)");
+          }
+
+          exit(0);
+        }
+      printf("message %s read by Receiver in SH\n", internal_msg.m_message.message);
+      }
+
+      if(strcmp(messageSH->id, "null") == 0){
+        conditions[2] = true;
+      }
+
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
+
+      }else{
+        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+        writeFile(internal_msg.msgFile, internal_msg.m_message, F4);	//scrittura messaggio su F3
+
+        numWrite = write(pipe3[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
+
+        if(numWrite != sizeof(internal_msg.m_message)){
+          ErrExit("Write on pipe3 failed");
+        }
+      }
 
     } //esce dal while
 
-    remove_fifo("OutputFiles/my_fifo.txt", fifo);
+    while(wait(NULL) != -1){
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
-    ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
-
-    while (1) {
-      if(msgrcv(msqid, &m, mSize, 3, IPC_NOWAIT) == -1){
-        if(errno == ENOMSG){
-          break;
-        }else{
-          ErrExit("MsgReceive failed\n");
-        }
       }else{
-        printf("message %s arrived in RM via MQ\n", m.m_message.message);
+        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+        writeFile(internal_msg.msgFile, internal_msg.m_message, F4);	//scrittura messaggio su F3
+
+        numWrite = write(pipe3[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
+
+        if(numWrite != sizeof(internal_msg.m_message)){
+          ErrExit("Write on pipe3 failed");
+        }
       }
     }
 
-  //  printf("Receiver esce dal controllo della MSQ\n");
-  printf("message %s read by Receiver in SH\n", messageSH->message);
-  messageSH++;
-  sleep(3);
-  printf("message %s read by Receiver in SH\n", messageSH->message);
-  messageSH++;
-  sleep(3);
-  messageSH = (struct msg *) get_shared_memory(shmid, SHM_RDONLY);
+    struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
 
-  if(strcmp(messageSH->id, "null") == 0)
-  printf("Special message with id %s read by Receiver in SH\n", messageSH->id);
+    numWrite = write(pipe3[1], &final_msg, sizeof(struct msg));
+
+    if(close(pipe3[1]) == -1){  //chiusura del canale del canale di scrittura
+      ErrExit("Close of Write end of pipe3 failed (R3)");
+    }
+
+    remove_fifo("OutputFiles/my_fifo.txt", fifo);
+
+    exit(0);
 
   }else if(pid != 0 && pid_R[0] > 0 && pid_R[1] > 0 && pid_R[2] > 0){
     int status;

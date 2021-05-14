@@ -250,3 +250,27 @@ void printSemaphoresValue (int semid) {
     for (int i = 0; i < 1; i++)
         printf("id: %d --> %d\n", semid, semVal[i]);
 }
+
+struct container init_container(struct container msgFile){
+	strcpy(msgFile.time_arrival, "");  //inizializziamo i campi per la registrazione del tempo di arrivo e partenza dei messaggi
+	strcpy(msgFile.time_departure, "");
+	strcpy(msgFile.id, "");
+	strcpy(msgFile.message, "");
+	strcpy(msgFile.idSender, "");
+	strcpy(msgFile.idReceiver, "");
+
+	return msgFile;
+
+}
+struct msg init_msg(struct msg message){
+		strcpy(message.id, "");
+		strcpy(message.message, "");
+		strcpy(message.idSender, "");
+		strcpy(message.idReceiver, "");
+		strcpy(message.delS1, "");
+		strcpy(message.delS2, "");
+		strcpy(message.delS3, "");
+		strcpy(message.type, "");
+
+		return message;
+}

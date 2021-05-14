@@ -11,14 +11,19 @@
 #include <sys/shm.h>
 
 struct message{
-  int id;
+  char id[5];
   char message[50];
   char idSender[3];
   char idReceiver[3];
-  char delS1;
-  char delS2;
-  char delS3;
-  key_t shmKey;
+  char delS1[3];
+  char delS2[3];
+  char delS3[3];
+  char type[5];
+  ssize_t shmKey;
+};
+
+struct address{
+  struct message *ptr;
 };
 
 // The alloc_shared_memory method creates, if it does not exist, a shared

@@ -54,7 +54,18 @@ int main(int argc, char * argv[]) {
   key_t shmKey = 01101101;
   int shmid;
   shmid = alloc_shared_memory(shmKey, sizeof(struct message));
-  struct msg *messageSH = (struct msg *)get_shared_memory(shmid, 0);
+  struct message *messageSH = (struct message *)get_shared_memory(shmid, 0);
+
+  //=================================================================================
+  //creazione della shared memory 2
+
+  key_t shmKey2 = ftok("receiver_manager.c", 'L');
+  int shmid2;
+  shmid2 = alloc_shared_memory(shmKey2, sizeof(struct address));
+  struct address *address = (struct address *)get_shared_memory(shmid2, 0);
+
+  address->ptr = messageSH;
+
   //==================================================================================
   //creazione della message queue tra Senders e Receivers
 
@@ -255,6 +266,10 @@ int main(int argc, char * argv[]) {
 
               semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
+              messageSH = address->ptr;
+
+              //printf("MessageSH ADDRESS %p\n", address->ptr);
+
               //scrivo sulla shared memory il  messaggio
               strcpy(messageSH->id, internal_msg.m_message.id);
               strcpy(messageSH->message, internal_msg.m_message.message);
@@ -265,6 +280,11 @@ int main(int argc, char * argv[]) {
               strcpy(messageSH->delS3, internal_msg.m_message.delS3);
               strcpy(messageSH->type, internal_msg.m_message.type);
 
+
+              messageSH++;
+              address->ptr = messageSH;
+
+              //printf("MessageSH ADDRESS %p\n", address->ptr);
               //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
               semOp(semid, 0, 1);
             }
@@ -333,6 +353,9 @@ int main(int argc, char * argv[]) {
           if(strcmp(internal_msg.m_message.type, "SH") == 0){ //SHARED MEMORY
             semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
+            messageSH = address->ptr;
+            //printf("MessageSH ADDRESS %p\n", address->ptr);
+
             //scrivo sulla shared memory il  messaggio
             strcpy(messageSH->id, internal_msg.m_message.id);
             strcpy(messageSH->message, internal_msg.m_message.message);
@@ -343,6 +366,10 @@ int main(int argc, char * argv[]) {
             strcpy(messageSH->delS3, internal_msg.m_message.delS3);
             strcpy(messageSH->type, internal_msg.m_message.type);
 
+
+            messageSH++;
+            address->ptr = messageSH;
+            //printf("MessageSH ADDRESS %p\n", address->ptr);
             //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
             semOp(semid, 0, 1);
           }
@@ -472,12 +499,15 @@ int main(int argc, char * argv[]) {
 
             //infine inviamo il messaggio alla msg queue
             if(msgsnd(msqid, &m, mSize ,0) == -1){
-              ErrExit("message send failed (S1)");
+              ErrExit("message send failed (S2)");
             }
           }
 
           if(strcmp(internal_msg.m_message.type, "SH") == 0){ //SHARED MEMORY
             semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
+
+            messageSH = address->ptr;
+            //printf("MessageSH ADDRESS %p\n", address->ptr);
 
             //scrivo sulla shared memory il  messaggio
             strcpy(messageSH->id, internal_msg.m_message.id);
@@ -489,6 +519,10 @@ int main(int argc, char * argv[]) {
             strcpy(messageSH->delS3, internal_msg.m_message.delS3);
             strcpy(messageSH->type, internal_msg.m_message.type);
 
+
+            messageSH++;
+            address->ptr = messageSH;
+            //printf("MessageSH ADDRESS %p\n", address->ptr);
             //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
             semOp(semid, 0, 1);
           }
@@ -542,6 +576,9 @@ int main(int argc, char * argv[]) {
           if(strcmp(internal_msg.m_message.type, "SH") == 0){ //SHARED MEMORY
             semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
+            messageSH = address->ptr;
+            //printf("MessageSH ADDRESS %p\n", address->ptr);
+
             //scrivo sulla shared memory il  messaggio
             strcpy(messageSH->id, internal_msg.m_message.id);
             strcpy(messageSH->message, internal_msg.m_message.message);
@@ -552,6 +589,10 @@ int main(int argc, char * argv[]) {
             strcpy(messageSH->delS3, internal_msg.m_message.delS3);
             strcpy(messageSH->type, internal_msg.m_message.type);
 
+
+            messageSH++;
+            address->ptr = messageSH;
+            //printf("MessageSH ADDRESS %p\n", address->ptr);
             //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
             semOp(semid, 0, 1);
           }
@@ -605,7 +646,7 @@ int main(int argc, char * argv[]) {
     }
 
     ssize_t nBys;
-
+    int fifo;
     //inizializzimo una struttura di tipo msg che servirà a comunicare che non ci sono più messaggi
     struct msg message = {"", "", "", "", "", "", "", ""};
     ssize_t internal_mSize = sizeof(struct child) - sizeof(long); //per la msgqueue tra Senders e i propri figli
@@ -672,6 +713,9 @@ int main(int argc, char * argv[]) {
 
           semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
+          messageSH = address->ptr;
+          //printf("MessageSH ADDRESS %p\n", address->ptr);
+
           //scrivo sulla shared memory il  messaggio
           strcpy(messageSH->id, internal_msg.m_message.id);
           strcpy(messageSH->message, internal_msg.m_message.message);
@@ -682,15 +726,17 @@ int main(int argc, char * argv[]) {
           strcpy(messageSH->delS3, internal_msg.m_message.delS3);
           strcpy(messageSH->type, internal_msg.m_message.type);
 
-          printf("message %s written on SH by Sender\n", messageSH->message);
+
           messageSH++;
+          address->ptr = messageSH;
+          //printf("MessageSH ADDRESS %p\n", address->ptr);
           //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
           semOp(semid, 0, 1);
         }
 
         if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
 
-          int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY); //apro il file descriptor relativo alla FIFO in sola scrittura
+          fifo = open("OutputFiles/my_fifo.txt", O_WRONLY | O_NONBLOCK); //apro il file descriptor relativo alla FIFO in sola scrittura
 
           if(fifo == -1){
             ErrExit("open (fifo) failed");
@@ -741,6 +787,9 @@ int main(int argc, char * argv[]) {
 
           semOp(semid, 0, -1);	//entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
+          messageSH = address->ptr;
+          //printf("MessageSH ADDRESS %p\n", address->ptr);
+
           //scrivo sulla shared memory il  messaggio
           strcpy(messageSH->id, internal_msg.m_message.id);
           strcpy(messageSH->message, internal_msg.m_message.message);
@@ -751,9 +800,10 @@ int main(int argc, char * argv[]) {
           strcpy(messageSH->delS3, internal_msg.m_message.delS3);
           strcpy(messageSH->type, internal_msg.m_message.type);
 
-          printf("message %s written on SH by Sender\n", messageSH->message);
 
           messageSH++;
+          address->ptr = messageSH;
+          //printf("MessageSH ADDRESS %p\n", address->ptr);
 
           //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
           semOp(semid, 0, 1);
@@ -761,7 +811,7 @@ int main(int argc, char * argv[]) {
 
         if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
 
-          int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY); //apro il file descriptor relativo alla FIFO in sola scrittura
+          fifo = open("OutputFiles/my_fifo.txt", O_WRONLY | O_NONBLOCK); //apro il file descriptor relativo alla FIFO in sola scrittura
 
           if(fifo == -1){
             ErrExit("open (fifo) failed");
@@ -784,6 +834,9 @@ int main(int argc, char * argv[]) {
     if(close(pipe2[0]) == -1){  //chiusura lato lettura della pipe2
       ErrExit("Close of read end of pipe2 failed (S3)");
     }
+
+    //chiusura lato scrittura fifo
+    close(fifo);
 
     exit(0);  //terminazione S3
 
@@ -820,13 +873,21 @@ int main(int argc, char * argv[]) {
       ErrExit("close pipe2 read end in father failed");
     }
 
+    messageSH = address->ptr;
     strcpy(messageSH->id, "null");
 
-    //chiusura lato scrittura fifo
-    close(fifo);
+    ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
+    m.mtype = 3;
+    strcpy(m.m_message.id, "null");
+
+    if(msgsnd(msqid, &m, mSize ,0) == -1){
+      ErrExit("message send failed (S1)");
+    }
 
     //detach della shared memory
-    free_shared_memory(messageSH);
+
+    free_shared_memory(address);
+    remove_shared_memory(shmid2);
 
     //rimozione della msg queue
     if(msgctl(mqid, IPC_RMID, NULL) == -1){

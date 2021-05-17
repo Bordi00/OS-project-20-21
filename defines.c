@@ -232,6 +232,68 @@ void writeF8(int pid_S[3]){
 	}
 }
 
+void writeF9(int pid_R[3]){
+ const char headingF9[] = "ReceiverID;PID\n";
+  //ottengo la directory corrente e concateno con la stringa mancante per compatibilità con altri OS
+  getcwd(path, PATH_SZ);
+  strcat(path, "/OutputFiles/F9.csv");
+
+  int F9 = open(path, O_RDWR | O_CREAT, S_IRWXU);
+
+  ssize_t numWrite = write(F9, headingF9, strlen(headingF9));
+  if(numWrite != strlen(headingF9))
+    ErrExit("write");
+
+
+  char S1[] = "R1;"; //intestazione S1
+  char S2[] = "R2;";
+  char S3[] = "R3;";
+
+  char pid_R1[2];  //array che contiene il pid di S1 convertito in char
+  char pid_R2[2];  //array che contiene il pid di S2 convertito in char
+  char pid_R3[2];  //array che contiene il pid di S3 convertito in char
+
+  //Scrivo S1
+  sprintf(pid_R1, "%d", pid_R[0]);  //converto pid di S1 in char e lo metto nell'array pid_R1
+  strcat(pid_R1, "\n");             //aggiungo un \n alla fine del pid
+
+  numWrite = write(F9, S1, strlen(S1));
+  if(numWrite != strlen(S1))
+  	ErrExit("write");
+
+  numWrite = write(F9, pid_R1, strlen(pid_R1));
+  if(numWrite != strlen(pid_R1))
+    ErrExit("write");
+
+    //Scrivo S2
+  sprintf(pid_R2, "%d", pid_R[1]);  //converto pid di S2 in char e lo metto nell'array pid_R2
+  strcat(pid_R2, "\n");             //aggiungo un \n alla fine del pid
+
+  numWrite = write(F9, S2, strlen(S2));
+  if(numWrite != strlen(S2))
+    ErrExit("write");
+
+  numWrite = write(F9, pid_R2, strlen(pid_R2));
+  if(numWrite != strlen(pid_R2))
+    ErrExit("write");
+
+  //Scrivo S3
+  sprintf(pid_R3, "%d", pid_R[2]);  //converto pid di S3 in char e lo metto nell'array pid_R3
+  strcat(pid_R3, "\n");             //aggiungo un \n alla fine del pid
+
+  numWrite = write(F9, S3, strlen(S3));
+  if(numWrite != strlen(S3))
+    ErrExit("write");
+
+  numWrite = write(F9, pid_R3, strlen(pid_R3));
+  if(numWrite != strlen(pid_R3))
+    ErrExit("write");
+
+	if(close(F9) == -1){
+		ErrExit("Close F9 failed");
+	}
+}
+
 void sigHandler(int sig){
   	printf("Sigalarm catched\n");
 }

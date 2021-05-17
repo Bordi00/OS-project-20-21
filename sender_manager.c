@@ -44,7 +44,7 @@ int main(int argc, char * argv[]) {
   //creazione fifo
 
   int fifo;
-  if((fifo = mkfifo("OutputFiles/my_fifo.txt", S_IRWXO | S_IRWXU)) == -1){
+  if((fifo = mkfifo("OutputFiles/my_fifo.txt", S_IRUSR | S_IWUSR | S_IWGRP)) == -1){
     ErrExit("create fifo failed");
   }
 
@@ -224,6 +224,8 @@ int main(int argc, char * argv[]) {
         if(pid == 0){ //sono nel figlio
           sleep(atoi(message.delS1)); //il figlio dorme per DelS1 secondi
           internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
+          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //invia il mesaaggio
             ErrExit("message send failed (S1 child)");
           }
@@ -235,7 +237,7 @@ int main(int argc, char * argv[]) {
 
         }else{//altrimenti guardiamo chi lo deve inviare
           if(strcmp(internal_msg.m_message.idSender, "S1") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S1
-            internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
+            //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
             writeFile(internal_msg.msgFile, internal_msg.m_message, F1);	//scrittura messaggio su F1
 
             //inviamo il messaggio alla corrispondente IPC
@@ -292,7 +294,7 @@ int main(int argc, char * argv[]) {
           }
 
           if(strcmp(internal_msg.m_message.idSender, "S2") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S2
-            internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
+            //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
             writeFile(internal_msg.msgFile, internal_msg.m_message, F1);	//scrittura messaggio su F1
 
             //mandiamo ad S2 tramite pipe1
@@ -302,7 +304,7 @@ int main(int argc, char * argv[]) {
           }
 
           if(strcmp(internal_msg.m_message.idSender, "S3") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S3
-            internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
+            //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
             writeFile(internal_msg.msgFile, internal_msg.m_message, F1);	//scrittura messaggio su F1
 
             //mandiamo ad S3 tramite pipe1
@@ -320,10 +322,10 @@ int main(int argc, char * argv[]) {
       if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
       }else{  //altrimenti guardiamo chi lo deve inviare
-        strcpy(internal_msg.msgFile.time_departure, "");  //inizializiamo il campo per la partenza del mex
+        //strcpy(internal_msg.msgFile.time_departure, "");  //inizializiamo il campo per la partenza del mex
 
         if(strcmp(internal_msg.m_message.idSender, "S1") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S1
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
           writeFile(internal_msg.msgFile, internal_msg.m_message, F1);	//scrittura messaggio su F1
 
           //inviamo il messaggio alla corrispondente IPC
@@ -377,7 +379,7 @@ int main(int argc, char * argv[]) {
         }
 
         if(strcmp(internal_msg.m_message.idSender, "S2") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S2
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
           writeFile(internal_msg.msgFile, internal_msg.m_message, F1);	//scrittura messaggio su F1
 
           //mandiamo ad S2 tramite pipe1
@@ -388,7 +390,7 @@ int main(int argc, char * argv[]) {
         }
 
         if(strcmp(internal_msg.m_message.idSender, "S3") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S3
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
           writeFile(internal_msg.msgFile, internal_msg.m_message, F1);	//scrittura messaggio su F1
           //mandiamo ad S3 tramite pipe1
           ssize_t nBys = write(pipe1[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
@@ -464,6 +466,7 @@ int main(int argc, char * argv[]) {
         sleep(atoi(message.delS2)); //il figlio dorme per DelS2 secondi
         internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
         internal_msg.mtype = 2; //cambiamo l'mtype per sapere quali messaggi S2 deve leggere dalla msg queue
+        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
 
         if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
           ErrExit("message send failed (S2 child)");
@@ -476,7 +479,7 @@ int main(int argc, char * argv[]) {
 
       }else{  //altrimenti guardiamo chi lo deve inviare
         if(strcmp(internal_msg.m_message.idSender, "S2") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S2
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
           writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F1
 
           //inviamo il messaggio alla corrispondente IPC
@@ -530,7 +533,7 @@ int main(int argc, char * argv[]) {
         }
 
         if(strcmp(internal_msg.m_message.idSender, "S3") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S3
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
           writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F1
 
           //mandiamo ad S3 tramite pipe2
@@ -547,7 +550,7 @@ int main(int argc, char * argv[]) {
 
       }else{  //altrimenti guardiamo chi lo deve inviare
         if(strcmp(internal_msg.m_message.idSender, "S2") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S2
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
           writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F2
 
           //inviamo il messaggio alla corrispondente IPC
@@ -600,7 +603,7 @@ int main(int argc, char * argv[]) {
         }
 
         if(strcmp(internal_msg.m_message.idSender, "S3") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S3
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
           writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F2
 
           //mandiamo ad S3 tramite pipe1
@@ -671,6 +674,7 @@ int main(int argc, char * argv[]) {
         sleep(atoi(message.delS3)); //il figlio dorme per DelS3 secondi
         internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
         internal_msg.mtype = 3; //cambiamo l'mtype per sapere quali messaggi S3 deve leggere dalla msg queue
+        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
 
         if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
           ErrExit("message send failed (S3 child)");
@@ -682,7 +686,7 @@ int main(int argc, char * argv[]) {
       if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non ci sono messaggi con mtype 2 nella msgqueue non fa nulla
 
       }else{ //altrimenti guardiamo in che modo dobbiamo inviarlo
-        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);// registriamo il tempo di partenza del messaggio
+      //  internal_msg.msgFile = get_time_departure(internal_msg.msgFile);// registriamo il tempo di partenza del messaggio
         writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F3
         //inviamo il messaggio alla corrispondente IPC
         if(strcmp(internal_msg.m_message.type, "Q") == 0){  // MESSAGE QUEUE
@@ -755,7 +759,7 @@ int main(int argc, char * argv[]) {
       if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
       }else{
-        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+        //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
         writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F3
 
         //inviamo il messaggio alla corrispondente IPC
@@ -873,8 +877,11 @@ int main(int argc, char * argv[]) {
       ErrExit("close pipe2 read end in father failed");
     }
 
+
     messageSH = address->ptr;
+
     strcpy(messageSH->id, "null");
+    strcpy(messageSH->idReceiver, "end");
 
     ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
     m.mtype = 3;
@@ -883,6 +890,14 @@ int main(int argc, char * argv[]) {
     if(msgsnd(msqid, &m, mSize ,0) == -1){
       ErrExit("message send failed (S1)");
     }
+
+    m.mtype = 2;
+    strcpy(m.m_message.id, "null");
+
+    if(msgsnd(msqid, &m, mSize ,0) == -1){
+      ErrExit("message send failed (S1)");
+    }
+
 
     //detach della shared memory
 

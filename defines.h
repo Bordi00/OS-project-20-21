@@ -55,6 +55,8 @@ struct container get_time_departure(struct container msgFile);
 void writeFile(struct container msgF1, struct msg message, int fd);
 //dichiarazione funzione per la scrittura di F8.csv
 void writeF8(int pid_S[3]);
+//dichiarazione funzione per la scrittura di F8.csv
+void writeF9(int pid_R[3]);
 //dichiarazione funzione gestione dei segnali
 void sigHandler(int sig);
 //dichiarazione funzione stampa valori dei semafori

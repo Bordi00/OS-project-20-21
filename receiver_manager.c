@@ -170,6 +170,7 @@ int main(int argc, char * argv[]) {
           sleep(atoi(internal_msg.m_message.delS3));
           internal_msg.mtype = 3;
 
+          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
             ErrExit("message send failed (R3 child)");
           }
@@ -200,6 +201,7 @@ int main(int argc, char * argv[]) {
             if(strcmp(internal_msg.m_message.delS3, "-") != 0)
               sleep(atoi(internal_msg.m_message.delS3));
 
+            internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
             internal_msg.mtype = 3;
 
             if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -215,7 +217,9 @@ int main(int argc, char * argv[]) {
       internal_msg.m_message = init_msg(internal_msg.m_message);
 
       //========================SHARED MEMORY=============================//
-      if(strcmp(messageSH->idReceiver, "R3") == 0){
+      if(strcmp(messageSH->idReceiver, "R1") != 0 && strcmp(messageSH->idReceiver, "R2") != 0 && strcmp(messageSH->idReceiver, "R3") != 0){
+      }else{
+        if(strcmp(messageSH->idReceiver, "R3") == 0){
         //scrivo sulla shared memory il  messaggio
         strcpy(internal_msg.m_message.id, messageSH->id);
         strcpy(internal_msg.m_message.message, messageSH->message);
@@ -226,8 +230,6 @@ int main(int argc, char * argv[]) {
         strcpy(internal_msg.m_message.delS3, messageSH->delS3);
         strcpy(internal_msg.m_message.type, messageSH->type);
 
-        messageSH++;
-
         internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
 
         pid = fork();
@@ -236,6 +238,7 @@ int main(int argc, char * argv[]) {
           if(strcmp(internal_msg.m_message.delS3, "-") != 0)
             sleep(atoi(internal_msg.m_message.delS3));
 
+          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 3;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -244,6 +247,9 @@ int main(int argc, char * argv[]) {
 
           exit(0);
         }
+      }
+      messageSH++;
+
       printf("message %s read by Receiver in SH\n", internal_msg.m_message.message);
       }
 
@@ -254,7 +260,7 @@ int main(int argc, char * argv[]) {
       if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
       }else{
-        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+        //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
         writeFile(internal_msg.msgFile, internal_msg.m_message, F4);	//scrittura messaggio su F3
 
         numWrite = write(pipe3[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
@@ -270,7 +276,7 @@ int main(int argc, char * argv[]) {
       if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
       }else{
-        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+        //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
         writeFile(internal_msg.msgFile, internal_msg.m_message, F4);	//scrittura messaggio su F3
 
         numWrite = write(pipe3[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
@@ -293,9 +299,187 @@ int main(int argc, char * argv[]) {
 
     exit(0);
 
+    //========================== R2 ============================//
+  }else if (pid == 0 && pid_R[0] == 0 && pid_R[1] > 0 && pid_R[2] == 0) {
+
+    if (close(pipe3[1]) == -1) {
+      ErrExit("Close of Write end of pipe3 failed (R2).\n");
+    }
+
+    if (close(pipe4[0]) == -1) {
+      ErrExit("Close of Read end of pipe4 failed (R2).\n");
+    }
+
+    int F5 = open("OutputFiles/F5.csv", O_RDWR | O_CREAT, S_IRWXU);
+    if (F5 == -1) {
+      ErrExit("open F5.csv failed");
+    }
+
+    ssize_t numWrite = write(F5, heading, strlen(heading)); //scriviamo l'intestazione sul file F2.csv
+
+    if (numWrite != strlen(heading)) {
+      ErrExit("write F5 failed");
+    }
+
+    bool conditions[3] = {false};
+
+
+    while(conditions[0] == false || conditions[1] == false || conditions[2] == false){
+
+      internal_msg.msgFile = init_container(internal_msg.msgFile);
+      internal_msg.m_message = init_msg(internal_msg.m_message);
+
+      ssize_t nBys = read(pipe3[0], &internal_msg.m_message, sizeof(internal_msg.m_message));
+
+      if(nBys > 0){
+          if(strcmp(internal_msg.m_message.id, "-1") == 0){
+            //printf("Pipe receive msg -1\n");
+            conditions[0] = true;
+          }else{
+            internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
+
+            pid = fork();
+
+            if(pid == 0){
+              if(strcmp(internal_msg.m_message.delS2, "-") != 0)
+                sleep(atoi(internal_msg.m_message.delS2));
+
+              internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+              internal_msg.mtype = 2;
+
+              if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
+                ErrExit("message send failed (R2 child)");
+              }
+
+              exit(0);
+            }
+
+          }
+      }
+
+      internal_msg.msgFile = init_container(internal_msg.msgFile);
+      internal_msg.m_message = init_msg(internal_msg.m_message);
+
+      if(msgrcv(msqid, &m, mSize, 2, IPC_NOWAIT) == -1){
+
+      }else{
+
+        if(strcmp(m.m_message.id, "null") == 0){
+          //printf("MSQ receive msg null\n");
+          conditions[1] = true;
+        }else{
+          //printf("message %s arrived in RM via MQ\n", m.m_message.message);
+          internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
+
+          pid = fork();
+
+          if(pid == 0){
+            internal_msg.m_message = m.m_message;
+            if(strcmp(internal_msg.m_message.delS2, "-") != 0)
+              sleep(atoi(internal_msg.m_message.delS2));
+
+            internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+            internal_msg.mtype = 2;
+
+            if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
+              ErrExit("message send failed (R2 child)");
+            }
+
+            exit(0);
+          }
+        }
+      }
+
+      internal_msg.msgFile = init_container(internal_msg.msgFile);
+      internal_msg.m_message = init_msg(internal_msg.m_message);
+
+      if(strcmp(messageSH->idReceiver, "R1") != 0 && strcmp(messageSH->idReceiver, "R2") != 0 && strcmp(messageSH->idReceiver, "R3") != 0){
+
+      }else{
+        if(strcmp(messageSH->idReceiver, "R2") == 0){
+        //scrivo sulla shared memory il  messaggio
+        strcpy(internal_msg.m_message.id, messageSH->id);
+        strcpy(internal_msg.m_message.message, messageSH->message);
+        strcpy(internal_msg.m_message.idSender, messageSH->idSender);
+        strcpy(internal_msg.m_message.idReceiver, messageSH->idReceiver);
+        strcpy(internal_msg.m_message.delS1, messageSH->delS1);
+        strcpy(internal_msg.m_message.delS2, messageSH->delS2);
+        strcpy(internal_msg.m_message.delS3, messageSH->delS3);
+        strcpy(internal_msg.m_message.type, messageSH->type);
+
+        internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
+
+        pid = fork();
+
+        if(pid == 0){
+          if(strcmp(internal_msg.m_message.delS2, "-") != 0)
+            sleep(atoi(internal_msg.m_message.delS2));
+
+          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          internal_msg.mtype = 2;
+
+          if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
+            ErrExit("message send failed (R3 child)");
+          }
+
+          exit(0);
+        }
+      }
+      messageSH++;
+      }
+
+      if(strcmp(messageSH->id, "null") == 0){
+        conditions[2] = true;
+      }
+
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
+
+      }else{
+        //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+        writeFile(internal_msg.msgFile, internal_msg.m_message, F5);	//scrittura messaggio su F3
+
+        numWrite = write(pipe4[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
+
+        if(numWrite != sizeof(internal_msg.m_message)){
+          ErrExit("Write on pipe4 failed");
+        }
+      }
+    }
+
+    while(wait(NULL) != -1){
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
+
+      }else{
+        //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+        writeFile(internal_msg.msgFile, internal_msg.m_message, F5);	//scrittura messaggio su F3
+
+        numWrite = write(pipe4[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
+
+        if(numWrite != sizeof(internal_msg.m_message)){
+          ErrExit("Write on pipe4 failed");
+        }
+      }
+    }
+
+    struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
+
+    numWrite = write(pipe4[1], &final_msg, sizeof(struct msg));
+
+    if(close(pipe4[1]) == -1){  //chiusura del canale del canale di scrittura
+      ErrExit("Close of Write end of pipe4 failed (R2)");
+    }
+
+    if(close(pipe3[0]) == -1){  //chiusura del canale del canale di scrittura
+      ErrExit("Close of Read end of pipe3 failed (R2)");
+    }
+
+    exit(0);
+
   }else if(pid != 0 && pid_R[0] > 0 && pid_R[1] > 0 && pid_R[2] > 0){
     int status;
     int i = 0;
+
+    writeF9(pid_R);
 
     while((pid = wait(&status)) != -1){
       printf("R%i %d exited, status = %d\n", i + 1, pid_R[i], WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato

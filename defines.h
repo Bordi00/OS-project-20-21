@@ -45,22 +45,35 @@ struct msg{
 	char type[5];
 };
 
+struct ipc{
+  char ipc[10];
+  char idKey[10];
+  char creator[8];
+  char creation[10];
+  char destruction[10];
+};
+
 // dichiarazione funzione per riempire la struct con i relativi campi in F0
 struct msg fill_structure(char buffer[],int j);
 //dichiarazione funzione che riempie il campo [time_arrival] di msgF1 con l'orario locale
 struct container get_time_arrival(struct container msgFile);
 //dichiarazione funzione che riempie il campo [time_departure] di msgF1 con l'orario locale
 struct container get_time_departure(struct container msgFile);
+
+struct ipc get_time(struct ipc historical, char flag);
 //dichiarazione funzione per la scrittura sul file f1;
 void writeFile(struct container msgF1, struct msg message, int fd);
 //dichiarazione funzione per la scrittura di F8.csv
 void writeF8(int pid_S[3]);
 //dichiarazione funzione per la scrittura di F8.csv
 void writeF9(int pid_R[3]);
+
+void writeF10(struct ipc historical, int F10);
 //dichiarazione funzione gestione dei segnali
 void sigHandler(int sig);
 //dichiarazione funzione stampa valori dei semafori
 void printSemaphoresValue (int semid);
 //dichiarazione funzione inizializzazione strutture contenimento messaggi
 struct container init_container(struct container msgFile);
+
 struct msg init_msg(struct msg message);

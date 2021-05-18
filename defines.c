@@ -109,6 +109,39 @@ struct container get_time_departure(struct container msgFile){
   return msgFile;
 }
 
+struct ipc get_time(struct ipc historical, char flag){
+
+	time_t now = time(NULL);
+	struct tm *tm_struct = localtime(&now);
+	int hour = tm_struct->tm_hour;
+	int min = tm_struct->tm_min;
+	int sec = tm_struct->tm_sec;
+
+	char hour_t[3];
+	char min_t[3];
+	char sec_t[3];
+	sprintf(hour_t, "%d", hour);
+	sprintf(min_t, "%d", min);
+	sprintf(sec_t, "%d", sec);
+
+	if(flag == 'c'){
+	  strcat(historical.creation, hour_t);
+		strcat(historical.creation, ":");
+		strcat(historical.creation, min_t);
+		strcat(historical.creation, ":");
+		strcat(historical.creation, sec_t);
+	}else{
+		strcat(historical.destruction, hour_t);
+	 	strcat(historical.destruction, ":");
+	 	strcat(historical.destruction, min_t);
+	 	strcat(historical.destruction, ":");
+	 	strcat(historical.destruction, sec_t);
+	}
+
+  return historical;
+}
+
+
 void writeFile(struct container msgFile, struct msg message, int fd){
 
   ssize_t numWrite;
@@ -294,6 +327,60 @@ void writeF9(int pid_R[3]){
 	}
 }
 
+void writeF10(struct ipc historical, int F10){
+	ssize_t numWrite;
+
+	numWrite = write(F10, historical.ipc, strlen(historical.ipc));
+	if (numWrite != strlen(historical.ipc)){
+		ErrExit("write ipc");
+	}
+
+	numWrite = write(F10, ";", sizeof(char));
+	if (numWrite != sizeof(char)){
+		ErrExit("write");
+	}
+
+	numWrite = write(F10, historical.idKey, strlen(historical.idKey));
+	if (numWrite != strlen(historical.idKey)){
+		ErrExit("write key");
+	}
+
+	numWrite = write(F10, ";", sizeof(char));
+	if (numWrite != sizeof(char)){
+		ErrExit("write");
+	}
+
+	numWrite = write(F10, historical.creator, strlen(historical.creator));
+	if (numWrite != strlen(historical.creator)){
+		ErrExit("write creator");
+	}
+
+	numWrite = write(F10, ";", sizeof(char));
+	if (numWrite != sizeof(char)){
+		ErrExit("write");
+	}
+
+	numWrite = write(F10, historical.creation, strlen(historical.creation));
+	if (numWrite != strlen(historical.creation)){
+		ErrExit("write creation");
+	}
+
+	numWrite = write(F10, ";", sizeof(char));
+	if (numWrite != sizeof(char)){
+		ErrExit("write");
+	}
+
+	numWrite = write(F10, historical.destruction, strlen(historical.destruction));
+	if (numWrite != strlen(historical.destruction)){
+		ErrExit("write destruction");
+	}
+
+	numWrite = write(F10, "\n", sizeof(char));
+	if (numWrite != sizeof(char)){
+		ErrExit("write");
+	}
+
+}
 void sigHandler(int sig){
   	printf("Sigalarm catched\n");
 }

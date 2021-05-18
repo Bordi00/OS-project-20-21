@@ -13,6 +13,17 @@
 
 
 int main(int argc, char * argv[]) {
+  struct ipc historical[6] = {};
+
+  int F10 = open("OutputFiles/F10.csv", O_WRONLY | O_CREAT | O_APPEND, S_IWUSR | S_IRUSR);
+
+  if(F10 == -1){
+    ErrExit("Open F10 failed\n");
+  }
+
+  strcpy(historical[2].ipc, "FIFO");
+  strcpy(historical[2].creator, "SM");
+  historical[2] = get_time(historical[2], 'c');
 
   if(signal(SIGALRM, sigHandler) == SIG_ERR){
     ErrExit("changing signal handler failed");
@@ -40,6 +51,29 @@ int main(int argc, char * argv[]) {
   create_pipe(pipe3);
   create_pipe(pipe4);
 
+  char pipe_3[2];
+  char pipe_4[2];
+
+  strcpy(historical[0].ipc, "PIPE3");
+  strcpy(historical[1].ipc, "PIPE4");
+  strcpy(historical[0].creator, "RM");
+  strcpy(historical[1].creator, "RM");
+
+  sprintf(pipe_3, "%d", pipe3[0]);
+  strcpy(historical[0].idKey, pipe_3);
+  sprintf(pipe_3, "%d", pipe3[1]);
+  strcat(historical[0].idKey, "/");
+  strcat(historical[0].idKey, pipe_3);
+
+  sprintf(pipe_4, "%d", pipe4[0]);
+  strcpy(historical[1].idKey, pipe_4);
+  sprintf(pipe_4, "%d", pipe4[1]);
+  strcat(historical[1].idKey, "/");
+  strcat(historical[1].idKey, pipe_4);
+
+  historical[0] = get_time(historical[0], 'c');
+  historical[1] = get_time(historical[1], 'c');
+
   //=================================================================================
   // collegamento alla shared memory creata da sender_manager
 
@@ -47,6 +81,12 @@ int main(int argc, char * argv[]) {
   int shmid;
   shmid = alloc_shared_memory(shmKey, sizeof(struct message));
   struct message *messageSH = (struct message *) get_shared_memory(shmid, SHM_RDONLY);
+
+  sprintf(historical[3].idKey, "%x", shmKey);
+  strcpy(historical[3].ipc, "SH");
+  strcpy(historical[3].creator, "SM");
+  historical[3] = get_time(historical[3], 'c');
+
 
   //==================================================================================
   //collegamento alla message queue tra Senders e Receivers
@@ -65,6 +105,11 @@ int main(int argc, char * argv[]) {
   }
 
   ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
+
+  sprintf(historical[4].idKey, "%x", msgKey);
+  strcpy(historical[4].ipc, "MQ");
+  strcpy(historical[4].creator, "SM");
+  historical[4] = get_time(historical[4], 'c');
 
   //==================================================================================
   //creazione della message queue tra Receiver e i loro figli
@@ -85,6 +130,32 @@ int main(int argc, char * argv[]) {
   }
 
   ssize_t internal_mSize = sizeof(struct child) - sizeof(long);
+
+  sprintf(historical[5].idKey, "%x", mqKey);
+  strcpy(historical[5].ipc, "MQR");
+  strcpy(historical[5].creator, "SM");
+  historical[5] = get_time(historical[5], 'c');
+
+  //==================================================================================
+  //creazione dei semafori per la scrittura di F10
+
+  key_t semKey2 = ftok("defines.c", 'D');
+  int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid2 == -1){
+    ErrExit("semget failed");
+  }
+
+  unsigned short semInitVal[1];
+  union semun arg;
+  arg.array = semInitVal;
+
+  if(semctl(semid2, 0, GETALL, arg) == -1){
+    ErrExit("semctl failed");
+  }
+
+  int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
+
   //===================================================================
   //generazione di R1, R2, R3
 
@@ -135,7 +206,7 @@ int main(int argc, char * argv[]) {
   if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
 
     if (close(pipe3[0]) == -1) {
-      ErrExit("Close of Read hand of pipe2 failed.\n");
+      ErrExit("Close of Read hand of pipe4 failed.\n");
     }
 
     int F4 = open("OutputFiles/F4.csv", O_RDWR | O_CREAT, S_IRWXU);
@@ -295,7 +366,6 @@ if(close(pipe3[1]) == -1){  //chiusura del canale del canale di scrittura
   ErrExit("Close of Write end of pipe3 failed (R3)");
 }
 
-remove_fifo("OutputFiles/my_fifo.txt", fifo);
 
 exit(0);
 
@@ -638,17 +708,56 @@ exit(0);
     i++;
   }
 
+  //chiusura pipe 1
+  if(close(pipe3[1]) == -1){
+    ErrExit("close pipe3 write end in father failed");
+  }
+
+  if(close(pipe3[0]) == -1){
+    ErrExit("close pipe3 read end in father failed");
+  }
+
+  //chiusura pipe2
+  if(close(pipe4[1]) == -1){
+    ErrExit("close pipe4 write end in father failed");
+  }
+  if(close(pipe4[0]) == -1){
+    ErrExit("close pipe4 read end in father failed");
+  }
+
+  historical[0] = get_time(historical[0], 'd');
+  historical[1] = get_time(historical[1], 'd');
+
   free_shared_memory(messageSH);
   remove_shared_memory(shmid);
+
+  historical[3] = get_time(historical[3], 'd');
 
   //rimozione della msg queue
   if(msgctl(msqid, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE beetween Senders and Receivers failed");
   }
 
+  historical[4] = get_time(historical[4], 'd');
+
   //rimozione della msg queue
   if(msgctl(mqid, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE beetween Receivers and children failed");
+  }
+
+  historical[5] = get_time(historical[5], 'd');
+
+  //tempo destruction FIFO
+  sprintf(historical[2].idKey, "%d", fifo);
+
+  remove_fifo("OutputFiles/my_fifo.txt", fifo);
+
+  historical[2] = get_time(historical[2], 'd');
+
+  for(int i = 0; i < 6; i++){
+    semOp(semid2, 0, -1);
+    writeF10(historical[i], F10);
+    semOp(semid2, 0, 1);
   }
 
 }

@@ -13,11 +13,27 @@
 
 int main(int argc, char * argv[]) {
 
+  struct ipc historical[5] = {};
+
+  int F10 = open("OutputFiles/F10.csv", O_WRONLY | O_CREAT | O_APPEND, S_IWUSR | S_IRUSR);
+
+  if(F10 == -1){
+    ErrExit("Open F10 failed\n");
+  }
+
+  char headingF10[] = "IPC;IDKey;Creator;CreationTime;DestructionTime\n";
+
+  ssize_t numWrite = write(F10, headingF10, strlen(headingF10));
+
+  if(numWrite != strlen(headingF10)){
+    ErrExit("Error open F10");
+  }
+
   if(signal(SIGALRM, sigHandler) == SIG_ERR){
     ErrExit("changing signal handler failed");
   }
   //================================================================================
-  //dichiarazione e inizializzazione dell'array che conterrà i pid dei processi  S1, S2, S3
+  //dichiarazione e inizializzazione dell'array che conterrà i pid dei processi S1, S2, S3
 
   int pid_S[3];
   pid_S[0] = 0;
@@ -37,19 +53,41 @@ int main(int argc, char * argv[]) {
   int pipe1[2];
   int pipe2[2];
 
+  char pipe_1[2];
+  char pipe_2[2];
+
   create_pipe(pipe1);
   create_pipe(pipe2);
 
+  strcpy(historical[0].ipc, "PIPE1");
+  strcpy(historical[1].ipc, "PIPE2");
+  strcpy(historical[0].creator, "SM");
+  strcpy(historical[1].creator, "SM");
+
+  sprintf(pipe_1, "%d", pipe1[0]);
+  strcpy(historical[0].idKey, pipe_1);
+  sprintf(pipe_1, "%d", pipe1[1]);
+  strcat(historical[0].idKey, "/");
+  strcat(historical[0].idKey, pipe_1);
+
+  sprintf(pipe_2, "%d", pipe2[0]);
+  strcpy(historical[1].idKey, pipe_2);
+  sprintf(pipe_2, "%d", pipe2[1]);
+  strcat(historical[1].idKey, "/");
+  strcat(historical[1].idKey, pipe_2);
+
+  historical[0] = get_time(historical[0], 'c');
+  historical[1] = get_time(historical[1], 'c');
+
   //=================================================================================
   //creazione fifo
-
   int fifo;
   if((fifo = mkfifo("OutputFiles/my_fifo.txt", S_IRUSR | S_IWUSR | S_IWGRP)) == -1){
     ErrExit("create fifo failed");
   }
 
   //=================================================================================
-  //creazione della shared memory
+  //creazione della shared memory 	sprintf(idKey, "%x", historical.idKey);
 
   key_t shmKey = 01101101;
   int shmid;
@@ -57,16 +95,20 @@ int main(int argc, char * argv[]) {
   struct message *messageSH = (struct message *)get_shared_memory(shmid, 0);
 
   //=================================================================================
-  //creazione della shared memory 2
+  //creazione della shared memory per la conidivisione del puntantore alla shmKey
 
   key_t shmKey2 = ftok("receiver_manager.c", 'L');
-  //printf("SH 2 KEY 0x%x \n", shmKey2);
 
   int shmid2;
   shmid2 = alloc_shared_memory(shmKey2, sizeof(struct address));
   struct address *address = (struct address *)get_shared_memory(shmid2, 0);
 
   address->ptr = messageSH;
+
+  sprintf(historical[2].idKey, "%x", shmKey2);
+  strcpy(historical[2].ipc, "SH2");
+  strcpy(historical[2].creator, "SM");
+  historical[2] = get_time(historical[2], 'c');
 
   //==================================================================================
   //creazione della message queue tra Senders e Receivers
@@ -84,7 +126,6 @@ int main(int argc, char * argv[]) {
   if(msqid == -1){
     ErrExit("msgget failed");
   }
-
 
   //==================================================================================
   //creazione della message queue tra Sender e i loro figli
@@ -104,7 +145,10 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
-
+  sprintf(historical[3].idKey, "%x", mqKey);
+  strcpy(historical[3].ipc, "MQS");
+  strcpy(historical[3].creator, "SM");
+  historical[3] = get_time(historical[3], 'c');
   //==================================================================================
   //creazione dei semafori
 
@@ -120,6 +164,29 @@ int main(int argc, char * argv[]) {
   arg.array = semInitVal;
 
   if(semctl(semid, 0, SETALL, arg) == -1){
+    ErrExit("semctl failed");
+  }
+
+  sprintf(historical[4].idKey, "%x", semKey);
+  strcpy(historical[4].ipc, "SEMAPHORE");
+  strcpy(historical[4].creator, "SM");
+  historical[4] = get_time(historical[4], 'c');
+
+  //==================================================================================
+  //creazione dei semafori per la scrittura di F10
+
+  key_t semKey2 = ftok("defines.c", 'D');
+  int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid2 == -1){
+    ErrExit("semget failed");
+  }
+
+  unsigned short semInitVal1[] = {1};
+  union semun arg1;
+  arg1.array = semInitVal1;
+
+  if(semctl(semid2, 0, SETALL, arg1) == -1){
     ErrExit("semctl failed");
   }
 
@@ -880,6 +947,8 @@ exit(0);  //terminazione S3
     ErrExit("close pipe2 read end in father failed");
   }
 
+  historical[0] = get_time(historical[0], 'd');
+  historical[1] = get_time(historical[1], 'd');
 
   messageSH = address->ptr;
 
@@ -910,18 +979,29 @@ exit(0);  //terminazione S3
 
 
   //detach della shared memory
-
   free_shared_memory(address);
   remove_shared_memory(shmid2);
+
+  historical[2] = get_time(historical[2], 'd');
 
   //rimozione della msg queue
   if(msgctl(mqid, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE beetween Senders and children failed");
   }
 
+  historical[3] = get_time(historical[3], 'd');
+
   //rimozione del semaforo
   if(semctl(semid, 0, IPC_RMID, 0) == -1)
   ErrExit("semctl failed");
+
+  historical[4] = get_time(historical[4], 'd');
+
+  for(int i = 0; i < 5; i++){
+    semOp(semid2, 0, -1);
+    writeF10(historical[i], F10);
+    semOp(semid2, 0, 1);
+  }
 
   return 0; //terminazione di sender_manager
 

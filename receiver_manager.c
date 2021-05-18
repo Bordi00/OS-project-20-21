@@ -13,17 +13,21 @@
 
 
 int main(int argc, char * argv[]) {
+  //storico delle ipc utilizzate da RM
   struct ipc historical[6] = {};
 
+  //su F10 scriviamo lo storico delle IPC utilizzate
   int F10 = open("OutputFiles/F10.csv", O_WRONLY | O_CREAT | O_APPEND, S_IWUSR | S_IRUSR);
 
   if(F10 == -1){
     ErrExit("Open F10 failed\n");
   }
 
+  //segniamo l'ora di creazione della FIFO
   strcpy(historical[2].ipc, "FIFO");
   strcpy(historical[2].creator, "SM");
   historical[2] = get_time(historical[2], 'c');
+
 
   if(signal(SIGALRM, sigHandler) == SIG_ERR){
     ErrExit("changing signal handler failed");
@@ -51,9 +55,11 @@ int main(int argc, char * argv[]) {
   create_pipe(pipe3);
   create_pipe(pipe4);
 
+  //contiene i file descriptor delle pipe da scrivere su F10
   char pipe_3[2];
   char pipe_4[2];
 
+  //riempiamo lo storico delle pipe
   strcpy(historical[0].ipc, "PIPE3");
   strcpy(historical[1].ipc, "PIPE4");
   strcpy(historical[0].creator, "RM");
@@ -133,7 +139,7 @@ int main(int argc, char * argv[]) {
 
   sprintf(historical[5].idKey, "%x", mqKey);
   strcpy(historical[5].ipc, "MQR");
-  strcpy(historical[5].creator, "SM");
+  strcpy(historical[5].creator, "RM");
   historical[5] = get_time(historical[5], 'c');
 
   //==================================================================================
@@ -155,7 +161,6 @@ int main(int argc, char * argv[]) {
   }
 
   int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
-
   //===================================================================
   //generazione di R1, R2, R3
 

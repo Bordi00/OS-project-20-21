@@ -808,7 +808,7 @@ exit(0);  //terminazione S2
         semOp(semid, 0, 1);
       }
 
-      if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
+      if(strcmp(internal_msg.m_message.type, "FIFO") == 0 || strcmp(internal_msg.m_message.type, "PIPE") == 0){  //FIFO
 
         fifo = open("OutputFiles/my_fifo.txt", O_WRONLY | O_NONBLOCK); //apro il file descriptor relativo alla FIFO in sola scrittura
 
@@ -883,7 +883,7 @@ exit(0);  //terminazione S2
       semOp(semid, 0, 1);
     }
 
-    if(strcmp(internal_msg.m_message.type, "FIFO") == 0){  //FIFO
+    if(strcmp(internal_msg.m_message.type, "FIFO") == 0 || strcmp(internal_msg.m_message.type, "PIPE") == 0){  //FIFO
 
       fifo = open("OutputFiles/my_fifo.txt", O_WRONLY | O_NONBLOCK); //apro il file descriptor relativo alla FIFO in sola scrittura
 

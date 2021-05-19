@@ -381,8 +381,8 @@ void writeF10(struct ipc historical, int F10){
 	}
 
 }
+
 void sigHandler(int sig){
-  	printf("Sigalarm catched\n");
 }
 
 void printSemaphoresValue (int semid) {

@@ -160,7 +160,6 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
-  int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
   //===================================================================
   //generazione di R1, R2, R3
 
@@ -205,10 +204,10 @@ int main(int argc, char * argv[]) {
     }
   }
 
-
   //==============================ESECUZIONE R3 ========================================//
 
   if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
+
 
     if (close(pipe3[0]) == -1) {
       ErrExit("Close of Read hand of pipe4 failed.\n");
@@ -362,6 +361,17 @@ int main(int argc, char * argv[]) {
     }
   }
 }
+
+//tempo destruction FIFO
+sprintf(historical[2].idKey, "%d", fifo);
+
+remove_fifo("OutputFiles/my_fifo.txt", fifo);
+
+historical[2] = get_time(historical[2], 'd');
+
+semOp(semid2, 0, -1);
+writeF10(historical[2], F10);
+semOp(semid2, 0, 1);
 
 struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
 
@@ -751,13 +761,6 @@ exit(0);
   }
 
   historical[5] = get_time(historical[5], 'd');
-
-  //tempo destruction FIFO
-  sprintf(historical[2].idKey, "%d", fifo);
-
-  remove_fifo("OutputFiles/my_fifo.txt", fifo);
-
-  historical[2] = get_time(historical[2], 'd');
 
   for(int i = 0; i < 6; i++){
     semOp(semid2, 0, -1);

@@ -10,7 +10,6 @@
 #include "pipe.h"
 #include <sys/shm.h>
 #include <sys/msg.h>
-
 int main(int argc, char * argv[]) {
 
   struct ipc historical[5] = {};
@@ -29,7 +28,7 @@ int main(int argc, char * argv[]) {
     ErrExit("Error open F10");
   }
 
-  if(signal(SIGALRM, sigHandler) == SIG_ERR){
+  if(signal(SIGUSR1, sigHandler) == SIG_ERR){
     ErrExit("changing signal handler failed");
   }
   //================================================================================

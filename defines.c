@@ -59,6 +59,48 @@ struct msg fill_structure(char buffer[], int j){
       return message;
 }
 
+struct hackler fill_hackler_structure(char buffer[],int j){
+	struct hackler message = { };
+
+	int counter = 0;
+	int index = 0;
+
+		//riempo la struct con i messaggi
+	for(; buffer[j] != '\n'; j++){ //itero stringa per stringa
+		if(buffer[j] == ';'){
+			index = 0;
+			counter++;
+			j++;  //per passare dopo il ;
+		}
+		switch(counter){
+			case 0: // id
+				message.id[index] = buffer[j];
+				index++;
+				break;
+			case 1: // msg
+				message.delay[index] = buffer[j];
+				index++;
+				break;
+			case 2: // idSender
+				if(buffer[j] != ';'){
+					message.target[index] = buffer[j];
+					index++;
+				}else{
+					strcpy(message.target, "");
+					counter++;
+				}
+				break;
+			case 3: // idReceiver
+				message.action[index] = buffer[j];
+				index++;
+				break;
+				}
+		}
+
+
+		return message;
+}
+
 struct container get_time_arrival(struct container msgFile){
 
   time_t now = time(NULL);
@@ -382,9 +424,6 @@ void writeF10(struct ipc historical, int F10){
 
 }
 
-void sigHandler(int sig){
-}
-
 void printSemaphoresValue (int semid) {
     unsigned short semVal[1];
     union semun arg;
@@ -422,4 +461,78 @@ struct msg init_msg(struct msg message){
 		strcpy(message.type, "");
 
 		return message;
+}
+
+struct pid get_pidF8(struct pid pid){
+
+	int F8;
+	char bufferF8[50];
+	char pidF8[5];
+
+	do{
+		F8 = open("OutputFiles/F8.csv", O_RDONLY, S_IRUSR);
+	}while(F8 == -1);
+
+	read(F8, &bufferF8, sizeof(bufferF8));
+
+	int indexF8;
+	int i = 0;
+	int j = 0;
+
+	for(indexF8 = 0; bufferF8[indexF8] != '\n'; indexF8++);
+	indexF8++;
+
+	while(bufferF8[indexF8] != '\0'){
+		if(bufferF8[indexF8] == ';'){
+			while(bufferF8[indexF8] != '\n'){
+				indexF8++;
+				pidF8[i] = bufferF8[indexF8];
+				i++;
+			}
+			//printf("Pid %s")
+			pid.pid_S[j] = atoi(pidF8);
+			j++;
+			i = 0;
+		}
+		indexF8++;
+	}
+
+	return pid;
+}
+
+struct pid get_pidF9(struct pid pid){
+
+	int F9;
+	char bufferF9[50];
+	char pidF9[5];
+
+	do{
+		F9 = open("OutputFiles/F9.csv", O_RDONLY, S_IRUSR);
+	}while(F9 == -1);
+
+	read(F9, &bufferF9, sizeof(bufferF9));
+
+	int indexF9;
+	int i = 0;
+	int j = 0;
+
+	for(indexF9 = 0; bufferF9[indexF9] != '\n'; indexF9++);
+	indexF9++;
+
+	while(bufferF9[indexF9] != '\0'){
+		if(bufferF9[indexF9] == ';'){
+			while(bufferF9[indexF9] != '\n'){
+				indexF9++;
+				pidF9[i] = bufferF9[indexF9];
+				i++;
+			}
+			//printf("Pid %s")
+			pid.pid_R[j] = atoi(pidF9);
+			j++;
+			i = 0;
+		}
+		indexF9++;
+	}
+
+	return pid;
 }

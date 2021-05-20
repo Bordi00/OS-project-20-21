@@ -236,7 +236,7 @@ int main(int argc, char * argv[]) {
       //========================FIFO=============================//
       nBys = read(fifo, &internal_msg.m_message, sizeof(struct msg));
       if(nBys > 0){
-        printf("message %s with id %s arrived in RM via FIFO\n", internal_msg.m_message.message, internal_msg.m_message.id);
+        //printf("message %s with id %s arrived in RM via FIFO\n", internal_msg.m_message.message, internal_msg.m_message.id);
         internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
 
         pid = fork();
@@ -266,7 +266,7 @@ int main(int argc, char * argv[]) {
         if(strcmp(m.m_message.id, "null") == 0){
           conditions[1] = true;
         }else{
-          printf("message %s arrived in RM via MQ\n", m.m_message.message);
+          //printf("message %s arrived in RM via MQ\n", m.m_message.message);
           internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
 
           pid = fork();
@@ -325,7 +325,7 @@ int main(int argc, char * argv[]) {
         }
         messageSH++;
 
-        printf("message %s read by Receiver in SH\n", internal_msg.m_message.message);
+        //printf("message %s read by Receiver in SH\n", internal_msg.m_message.message);
       }
 
       if(strcmp(messageSH->id, "null") == 0){
@@ -453,7 +453,7 @@ exit(0);
       if(strcmp(m.m_message.id, "null") == 0){
         conditions[1] = true;
       }else{
-        printf("message %s arrived in RM via MQ (R2)\n", m.m_message.message);
+        //printf("message %s arrived in RM via MQ (R2)\n", m.m_message.message);
         internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
 
         pid = fork();

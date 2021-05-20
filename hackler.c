@@ -5,81 +5,123 @@
 
 int main(int argc, char * argv[]){
 
-	/*
-       //ottengo la directory corrente e concateno con la stringa mancante per compatibilità con altri OS
-        getcwd(path, PATH_SZ);
-        strcat(path, argv[1]); //path contiene il percorso dove risiede F7
+  //ottengo la directory corrente e concateno con la stringa mancante per compatibilità con altri OS
+  getcwd(path, PATH_SZ);
+  strcat(path, argv[1]); //path contiene il percorso dove risiede F7
 
-        //apro il file da leggere
-        int F7 = open(path, O_RDWR, S_IRWXU);
+  //apro il file da leggere
+  int F7 = open(path, O_RDWR, S_IRWXU);
 
-        if(F7 == -1){
-            ErrExit("open F7 failed");
-        }
-      
-        ssize_t numRead = read(F7, buffer, BUFFER_SZ); //leggo F7 e salvo il contenuto in buffer
-        
-        if (numRead == -1)
-          ErrExit("read");
-        
-        if(close(F7) == -1)
-          ErrExit("close");
+  if(F7 == -1){
+    ErrExit("open F7 failed");
+  }
 
-        buffer[numRead] = '\0'; //numRead è l'indice dopo il quale non ci sono altri caratteri letti da F7
-      
-        int j = 0;
-        int i = 0;
-        int k = 0;
+  struct pid pids;
 
-        //riempo la struct con i messaggi
-        for(; i < 5; i++){
-          for(k = 0; buffer[j] != '\n'; j++, k++){ //itero stringa per stringa
-            msgF7[i].message[k] = buffer[j];       //riempo l'array della struct con la stringa
+  pids = get_pidF8(pids);
+  pids = get_pidF9(pids);
+
+  ssize_t numRead;
+  int i = 0;
+  int start_line = 0;
+  int pid;
+  struct hackler actions = { };
+
+  lseek(F7, 23, SEEK_CUR);
+
+  while((numRead = read(F7, &buffer[i], sizeof(char))) > 0){ //while che legge carattere per carattere da F0.csv
+
+    if(buffer[i] == '\n'){
+      actions = fill_hackler_structure(buffer, start_line);
+
+      pid = fork();
+
+      if(pid == -1){
+        ErrExit("creation child of hackler failed");
+      }
+
+      if(pid == 0){ //sono nel figlio
+        if(strcmp(actions.delay, "-") != 0)
+          sleep(atoi(actions.delay)); //il figlio dorme per DelS1 secondi
+
+        if(strcmp(actions.target, "S1") == 0){
+          if(strcmp(actions.action, "IncreaseDelay") == 0){
+            kill(pids.pid_S[0], SIGUSR1);
+          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+            kill(pids.pid_S[0], SIGUSR2);
+          }else if(strcmp(actions.action, "SendMsg") == 0){
+            kill(pids.pid_S[0], SIGALRM);
           }
-          msgF7[i].message[k] = '\n'; //alla fine della stringa inserisco il carattere invio
-          j++; //vado al prossimo carattere
+
+        }else if(strcmp(actions.target, "S2") == 0){
+
+          if(strcmp(actions.action, "IncreaseDelay") == 0){
+            kill(pids.pid_S[1], SIGUSR1);
+          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+            kill(pids.pid_S[1], SIGUSR2);
+          }else if(strcmp(actions.action, "SendMsg") == 0){
+            kill(pids.pid_S[1], SIGALRM);
+          }
+
+        }else if(strcmp(actions.target, "S3") == 0){
+
+          if(strcmp(actions.action, "IncreaseDelay") == 0){
+            kill(pids.pid_S[2], SIGUSR1);
+          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+            kill(pids.pid_S[2], SIGUSR2);
+          }else if(strcmp(actions.action, "SendMsg") == 0){
+            kill(pids.pid_S[2], SIGALRM);
+          }
+
+        }else if(strcmp(actions.target, "R1") == 0){
+
+          if(strcmp(actions.action, "IncreaseDelay") == 0){
+            kill(pids.pid_R[0], SIGUSR1);
+          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+            kill(pids.pid_R[0], SIGUSR2);
+          }else if(strcmp(actions.action, "SendMsg") == 0){
+            kill(pids.pid_R[0], SIGALRM);
+          }
+
+        }else if(strcmp(actions.target, "R2") == 0){
+
+          if(strcmp(actions.action, "IncreaseDelay") == 0){
+            kill(pids.pid_R[1], SIGUSR1);
+          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+            kill(pids.pid_R[1], SIGUSR2);
+          }else if(strcmp(actions.action, "SendMsg") == 0){
+            kill(pids.pid_R[1], SIGALRM);
+          }
+
+        }else if(strcmp(actions.target, "R3") == 0){
+
+          if(strcmp(actions.action, "IncreaseDelay") == 0){
+            kill(pids.pid_R[2], SIGUSR1);
+          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+            kill(pids.pid_R[2], SIGUSR2);
+          }else if(strcmp(actions.action, "SendMsg") == 0){
+            kill(pids.pid_R[2], SIGALRM);
+          }
+
+        }else{  //SHUTDOWN
+
+          kill(0,SIGTERM);
+
         }
-        msgF7[i].message[j] = '\0';
 
-        //Metto in path il percorso di F7_out
-        getcwd(path, PATH_SZ);
-        strcat(path, "/OutputFiles/F7_out.csv");
+        exit(0);  //termina
+      }
 
-        int F7_out = open(path, O_RDWR | O_CREAT, S_IRWXU);
+      start_line = i + 1;
+    }
+    i++;
+  }
 
-        if(F7_out == -1){
-            ErrExit("open F7_out failed");
-        }
-  
-      ssize_t numWrite;
-          
-      //scrivo F7 (buffer) in F7_out 
-      numWrite = write(F7_out, msgF7[0].message, strlen(msgF7[0].message));  
-      if (numWrite != strlen(msgF7[0].message))
-        ErrExit("write");
-
-      numWrite = write(F7_out, msgF7[4].message, strlen(msgF7[4].message));  
-      if (numWrite != strlen(msgF7[4].message))
-        ErrExit("write");
-
-      numWrite = write(F7_out, msgF7[3].message, strlen(msgF7[3].message));
-      if (numWrite != strlen(msgF7[3].message))
-        ErrExit("write");  
-
-      numWrite = write(F7_out, msgF7[2].message, strlen(msgF7[2].message)); 
-      if (numWrite != strlen(msgF7[2].message))
-        ErrExit("write"); 
-
-      numWrite = write(F7_out, msgF7[1].message, strlen(msgF7[1].message));  
-      if (numWrite != strlen(msgF7[1].message))
-        ErrExit("write");
-   
-      if(close(F7_out) == -1)
-        ErrExit("close");
-
-    sleep(2);
-    return 0;
-
-		*/
+  int status;
+  while((pid = wait(&status)) != -1){
+    printf("child with pid %d exited, status = %d\n", pid, WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
+    i++;
+  }
+  return 0;
 
 }

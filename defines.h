@@ -19,7 +19,7 @@
 #include "semaphore.h"
 #include "err_exit.h"
 
-#define BUFFER_SZ 1000
+#define BUFFER_SZ 100
 #define PATH_SZ 100
 char buffer[BUFFER_SZ + 1];
 char path[PATH_SZ + 1];
@@ -53,6 +53,18 @@ struct ipc{
   char destruction[10];
 };
 
+struct pid{
+  int pid_S[3];
+  int pid_R[3];
+};
+
+struct hackler{
+  char id[5];
+  char delay[3];
+  char target[3];
+  char action[25];
+};
+
 // dichiarazione funzione per riempire la struct con i relativi campi in F0
 struct msg fill_structure(char buffer[],int j);
 //dichiarazione funzione che riempie il campo [time_arrival] di msgF1 con l'orario locale
@@ -77,3 +89,8 @@ void printSemaphoresValue (int semid);
 struct container init_container(struct container msgFile);
 
 struct msg init_msg(struct msg message);
+
+struct pid get_pidF8(struct pid pid);
+struct pid get_pidF9(struct pid pid);
+
+struct hackler fill_hackler_structure(char buffer[],int j);

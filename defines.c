@@ -262,9 +262,9 @@ void writeF8(int pid_S[3]){
   char S2[] = "S2;";
   char S3[] = "S3;";
 
-  char pid_S1[2];  //array che contiene il pid di S1 convertito in char
-  char pid_S2[2];  //array che contiene il pid di S2 convertito in char
-  char pid_S3[2];  //array che contiene il pid di S3 convertito in char
+  char pid_S1[6];  //array che contiene il pid di S1 convertito in char
+  char pid_S2[6];  //array che contiene il pid di S2 convertito in char
+  char pid_S3[6];  //array che contiene il pid di S3 convertito in char
 
   //Scrivo S1
   sprintf(pid_S1, "%d", pid_S[0]);  //converto pid di S1 in char e lo metto nell'array pid_S1
@@ -324,9 +324,9 @@ void writeF9(int pid_R[3]){
   char S2[] = "R2;";
   char S3[] = "R3;";
 
-  char pid_R1[2];  //array che contiene il pid di S1 convertito in char
-  char pid_R2[2];  //array che contiene il pid di S2 convertito in char
-  char pid_R3[2];  //array che contiene il pid di S3 convertito in char
+  char pid_R1[6];  //array che contiene il pid di S1 convertito in char
+  char pid_R2[6];  //array che contiene il pid di S2 convertito in char
+  char pid_R3[6];  //array che contiene il pid di S3 convertito in char
 
   //Scrivo S1
   sprintf(pid_R1, "%d", pid_R[0]);  //converto pid di S1 in char e lo metto nell'array pid_R1

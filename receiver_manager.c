@@ -28,11 +28,11 @@ int main(int argc, char * argv[]) {
   strcpy(historical[2].creator, "SM");
   historical[2] = get_time(historical[2], 'c');
 
-
+  /*
   if(signal(SIGALRM, sigHandler) == SIG_ERR){
     ErrExit("changing signal handler failed");
   }
-
+  */
   //================================================================================
   //dichiarazione e inizializzazione dell'array che conterrà i pid dei processi  R1, R2, R3
 

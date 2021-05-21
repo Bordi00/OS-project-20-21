@@ -16,16 +16,18 @@ int main(int argc, char * argv[]){
     ErrExit("open F7 failed");
   }
 
-  struct pid pids;
+  struct pid pids = {};
 
-  pids = get_pidF8(pids);
-  pids = get_pidF9(pids);
+  do{
+    pids = get_pidF8(pids);
+    pids = get_pidF9(pids);
+  }while(pids.pid_S[2] == 0 || pids.pid_R[2] == 0);
 
   ssize_t numRead;
   int i = 0;
   int start_line = 0;
   int pid;
-  struct hackler actions = { };
+  struct hackler actions = {};
 
   lseek(F7, 23, SEEK_CUR);
 
@@ -46,7 +48,9 @@ int main(int argc, char * argv[]){
 
         if(strcmp(actions.target, "S1") == 0){
           if(strcmp(actions.action, "IncreaseDelay") == 0){
-            kill(pids.pid_S[0], SIGUSR1);
+            if(kill(pids.pid_S[0], SIGUSR1) == -1){
+              ErrExit("signal SIGUSR1 failed");
+            }
           }else if(strcmp(actions.action, "RemoveMsg") == 0){
             kill(pids.pid_S[0], SIGUSR2);
           }else if(strcmp(actions.action, "SendMsg") == 0){

@@ -10,6 +10,15 @@
 #include "pipe.h"
 #include <sys/shm.h>
 #include <sys/msg.h>
+
+static int global = 0;
+
+void sigHandler(int sig){
+  if(sig == SIGUSR1){
+    global = 1;
+  }
+}
+
 int main(int argc, char * argv[]) {
 
   struct ipc historical[5] = {};
@@ -290,6 +299,17 @@ int main(int argc, char * argv[]) {
           ErrExit("creation child of S1 failed");
         }
 
+        if(pid > 0){
+          //riempi lista con pid dei figli
+
+          if(/*var cambiata*/true){
+            //finchè lista non è finita
+            //kill(pid della lista);
+            //e rimuovi nodo
+            //var a val di default
+          }
+        }
+
         if(pid == 0){ //sono nel figlio
           sleep(atoi(message.delS1)); //il figlio dorme per DelS1 secondi
           internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
@@ -392,6 +412,7 @@ int main(int argc, char * argv[]) {
 
   }else{  //altrimenti guardiamo chi lo deve inviare
     //strcpy(internal_msg.msgFile.time_departure, "");  //inizializiamo il campo per la partenza del mex
+    //printf("GLOBAL S1 %d\n", global);
 
     if(strcmp(internal_msg.m_message.idSender, "S1") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S1
       //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
@@ -468,6 +489,8 @@ int main(int argc, char * argv[]) {
     }
   }
 }
+
+
 if(close(F1) == -1) //chiudiamo il file descriptor di F1
 ErrExit("close");
 
@@ -618,6 +641,7 @@ exit(0);  //terminazione S1
     if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
   }else{  //altrimenti guardiamo chi lo deve inviare
+    //printf("GLOBAL S2 %d\n", global);
     if(strcmp(internal_msg.m_message.idSender, "S2") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S2
       //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
       writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F2

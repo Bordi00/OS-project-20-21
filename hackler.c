@@ -2,8 +2,21 @@
 /// @brief Contiene l'implementazione del client.
 
 #include "defines.h"
+#include <sys/msg.h>
 
 int main(int argc, char * argv[]){
+
+  //==================================================================================
+  //creazione della message queue tra Sender e Hackler
+
+  struct signal sig;
+
+  key_t mqsig_Key = ftok("receiver_manager.c", 'H');
+  int mqsig_id = msgget(mqsig_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqsig_id == -1){
+    ErrExit("internal msgget failed");
+  }
 
   //ottengo la directory corrente e concateno con la stringa mancante per compatibilità con altri OS
   getcwd(path, PATH_SZ);
@@ -28,6 +41,7 @@ int main(int argc, char * argv[]){
   int start_line = 0;
   int pid;
   struct hackler actions = {};
+  struct list_t *list = new_list();
 
   lseek(F7, 23, SEEK_CUR);
 
@@ -47,14 +61,22 @@ int main(int argc, char * argv[]){
           sleep(atoi(actions.delay)); //il figlio dorme per DelS1 secondi
 
         if(strcmp(actions.target, "S1") == 0){
-          if(strcmp(actions.action, "IncreaseDelay") == 0){
-            if(kill(pids.pid_S[0], SIGUSR1) == -1){
-              ErrExit("signal SIGUSR1 failed");
+          //scarico MQ coi pid
+          while(msgrcv(mqsig_id, &sig, sizeof(sig) - sizeof(long), 1 , IPC_NOWAIT) != -1){
+
+            insert_into_list(list, sig.pid);
+            
+            if(strcmp(actions.action, "IncreaseDelay") == 0){
+              kill(sig.pid, SIGUSR1);
             }
-          }else if(strcmp(actions.action, "RemoveMsg") == 0){
-            kill(pids.pid_S[0], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMsg") == 0){
-            kill(pids.pid_S[0], SIGALRM);
+            if(strcmp(actions.action, "RemoveMsg") == 0){
+              printf("RMVMSG\n");
+              kill(sig.pid, SIGKILL);
+            }
+            if(strcmp(actions.action, "SendMsg") == 0){
+              kill(pids.pid_S[0], SIGALRM);
+            }
+
           }
 
         }else if(strcmp(actions.target, "S2") == 0){

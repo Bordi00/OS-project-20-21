@@ -536,3 +536,50 @@ struct pid get_pidF9(struct pid pid){
 
 	return pid;
 }
+
+struct list_t *new_list()
+{
+
+    struct list_t *list = (struct list_t *)malloc(sizeof(struct list_t));
+
+    list->head = NULL;
+
+    return list;
+}
+
+void insert_into_list(struct list_t *list, int value)
+{
+
+    struct node_t *node = (struct node_t *)malloc(sizeof(struct node_t));
+    struct node_t *current = list->head;
+    struct node_t *prec = current;
+
+    if (list->head == NULL || value < (current->value))
+    { //se sono al primo inserimento o se il nodo entrante è piu piccolo del primo nodo inserisco in testa
+        node->value = value;
+        node->next = list->head;
+        list->head = node;
+        return;
+    }
+    else
+    {
+        current = current->next; //altrimenti incremento current perchè il nodo è gia stato confrontato con la testa
+        while (current != NULL)
+        { //scorro la lista fino alla fine, se prima c'era un solo nodo esco direttamente
+            if (value > (prec->value) && value <= (current->value))
+            { //altrimenti guardo se il nodo entrante deve essere messo tra due nodi
+                node->value = value;
+                prec->next = node;
+                node->next = current;
+                return;
+            }
+            prec = current; //aggiorno i puntatori
+            current = current->next;
+        }
+    }
+
+    //se sono qui, o c'era un solo nodo in lista oppure è entrato un nodo maggiore degli altri in entrambi i casi va in coda
+    node->value = value;
+    prec->next = node;
+    node->next = NULL;
+}

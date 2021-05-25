@@ -15,8 +15,10 @@ static int global = 0;
 
 void sigHandler(int sig){
   if(sig == SIGUSR1){
-    global = 1;
+    printf("SIGUSR1 CATCHED\n");
+    sleep(5);
   }
+
 }
 
 int main(int argc, char * argv[]) {
@@ -37,7 +39,7 @@ int main(int argc, char * argv[]) {
     ErrExit("Error open F10");
   }
 
-  if(signal(SIGUSR1, sigHandler) == SIG_ERR){
+  if(signal(SIGUSR1, sigHandler) == SIG_ERR || signal(SIGQUIT, sigHandler) == SIG_ERR){
     ErrExit("changing signal handler failed");
   }
   //================================================================================
@@ -157,6 +159,21 @@ int main(int argc, char * argv[]) {
   strcpy(historical[3].ipc, "MQS");
   strcpy(historical[3].creator, "SM");
   historical[3] = get_time(historical[3], 'c');
+
+  //==================================================================================
+  //creazione della message queue tra Sender e Hackler
+
+  struct signal sig;
+
+  sig.mtype = 1;
+
+  key_t mqsig_Key = ftok("receiver_manager.c", 'H');
+  int mqsig_id = msgget(mqsig_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqsig_id == -1){
+    ErrExit("internal msgget failed");
+  }
+
   //==================================================================================
   //creazione dei semafori
 
@@ -283,6 +300,7 @@ int main(int argc, char * argv[]) {
     struct msg message = {"", "", "", "", "", "", "", ""};
 
     while((numRead = read(F0, &buffer[i], sizeof(char))) > 0 && buffer[i] != '\0'){ //while che legge carattere per carattere da F0.csv
+      //printf("GLOBAL %d\n", global);
 
       if(buffer[i] == '\n'){  //se i è \n allora siamo alla fine della prima riga ovvero abbiamo trovato il primo messaggio
 
@@ -300,20 +318,22 @@ int main(int argc, char * argv[]) {
         }
 
         if(pid > 0){
-          //riempi lista con pid dei figli
-
-          if(/*var cambiata*/true){
-            //finchè lista non è finita
-            //kill(pid della lista);
-            //e rimuovi nodo
-            //var a val di default
+          //mandare il pid sulla MQ e cambio mtype
+          sig.pid = pid;
+          if(msgsnd(mqsig_id, &sig, sizeof(sig) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed");
           }
         }
 
         if(pid == 0){ //sono nel figlio
-          sleep(atoi(message.delS1)); //il figlio dorme per DelS1 secondi
+          int sec = 0;
+
+          if((sec = sleep(atoi(message.delS1))) > 0){ //il figlio dorme per DelS1 secondi
+            sleep(sec);
+          }
+          
           internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //invia il mesaaggio
             ErrExit("message send failed (S1 child)");
@@ -322,9 +342,11 @@ int main(int argc, char * argv[]) {
           exit(0);  //termina
         }
 
-        if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){ //se non c'è ancora nessun messaggio non si fa nulla
+      if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){ //se non c'è ancora nessun messaggio non si fa nulla
 
       }else{//altrimenti guardiamo chi lo deve inviare
+        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+
         if(strcmp(internal_msg.m_message.idSender, "S1") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S1
           //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
           writeFile(internal_msg.msgFile, internal_msg.m_message, F1);	//scrittura messaggio su F1
@@ -411,9 +433,9 @@ int main(int argc, char * argv[]) {
     if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
   }else{  //altrimenti guardiamo chi lo deve inviare
-    //strcpy(internal_msg.msgFile.time_departure, "");  //inizializiamo il campo per la partenza del mex
+    strcpy(internal_msg.msgFile.time_departure, "");  //inizializiamo il campo per la partenza del mex
     //printf("GLOBAL S1 %d\n", global);
-
+    internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
     if(strcmp(internal_msg.m_message.idSender, "S1") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S1
       //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
       writeFile(internal_msg.msgFile, internal_msg.m_message, F1);	//scrittura messaggio su F1
@@ -1010,6 +1032,10 @@ exit(0);  //terminazione S3
   //rimozione della msg queue
   if(msgctl(mqid, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE beetween Senders and children failed");
+  }
+
+  if(msgctl(mqsig_id, IPC_RMID, NULL) == -1){
+    ErrExit("close of MSG QUEUE beetween Senders and Hackler failed");
   }
 
   historical[3] = get_time(historical[3], 'd');

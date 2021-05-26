@@ -879,8 +879,40 @@ exit(0);  //terminazione S2
     //creo figlio che gestisce il messaggio
     pid = fork();
 
+    if(pid > 0){
+      //mandare il pid sulla MQ e cambio mtype
+      sigInc.mtype = 3;
+      sigInc.pid = pid;
+
+      if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+        ErrExit("Sending pid to Hackler failed (S3 - INC)");
+      }
+
+      sigRmv.mtype = 3;
+      sigRmv.pid = pid;
+
+      if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+        ErrExit("Sending pid to Hackler failed (S3 - RMV)");
+      }
+
+      sigSnd.mtype = 3;
+      sigSnd.pid = pid;
+
+      if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+        ErrExit("Sending pid to Hackler failed (S3 - SND)");
+      }
+
+    }
+
+
     if(pid == 0){ //sono nel figlio
-      sleep(atoi(message.delS3)); //il figlio dorme per DelS3 secondi
+      int sec;
+
+      if((sec = sleep(atoi(message.delS3))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+        sleep(sec);
+        *check_time = false;
+      }
+
       internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
       internal_msg.mtype = 3; //cambiamo l'mtype per sapere quali messaggi S3 deve leggere dalla msg queue
       internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
@@ -895,7 +927,7 @@ exit(0);  //terminazione S2
     if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non ci sono messaggi con mtype 2 nella msgqueue non fa nulla
 
     }else{ //altrimenti guardiamo in che modo dobbiamo inviarlo
-      //  internal_msg.msgFile = get_time_departure(internal_msg.msgFile);// registriamo il tempo di partenza del messaggio
+
       writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F3
       //inviamo il messaggio alla corrispondente IPC
       if(strcmp(internal_msg.m_message.type, "Q") == 0){  // MESSAGE QUEUE
@@ -917,7 +949,7 @@ exit(0);  //terminazione S2
 
         //infine inviamo il messaggio alla msg queue
         if(msgsnd(msqid, &m, mSize ,0) == -1){
-          ErrExit("message send failed (S1)");
+          ErrExit("message send failed (S3)");
         }
 
       }
@@ -968,7 +1000,6 @@ exit(0);  //terminazione S2
     if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
   }else{
-    //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
     writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F3
 
     //inviamo il messaggio alla corrispondente IPC

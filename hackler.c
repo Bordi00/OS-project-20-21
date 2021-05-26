@@ -9,12 +9,23 @@ int main(int argc, char * argv[]){
   //==================================================================================
   //creazione della message queue tra Sender e Hackler
 
-  struct signal sig;
+  struct signal sigInc;
 
-  key_t mqsig_Key = ftok("receiver_manager.c", 'H');
-  int mqsig_id = msgget(mqsig_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+  key_t mqInc_Key = ftok("receiver_manager.c", 'H');
+  int mqInc_id = msgget(mqInc_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
 
-  if(mqsig_id == -1){
+  if(mqInc_id == -1){
+    ErrExit("internal msgget failed");
+  }
+
+  struct signal sigRmv; //MQ per RemoveMSG
+
+  sigRmv.mtype = 1;
+
+  key_t mqRmv_Key = ftok("fifo.c", 'A');
+  int mqRmv_id = msgget(mqRmv_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqRmv_id == -1){
     ErrExit("internal msgget failed");
   }
 
@@ -41,7 +52,6 @@ int main(int argc, char * argv[]){
   int start_line = 0;
   int pid;
   struct hackler actions = {};
-  struct list_t *list = new_list();
 
   lseek(F7, 23, SEEK_CUR);
 
@@ -62,22 +72,23 @@ int main(int argc, char * argv[]){
 
         if(strcmp(actions.target, "S1") == 0){
           //scarico MQ coi pid
-          while(msgrcv(mqsig_id, &sig, sizeof(sig) - sizeof(long), 1 , IPC_NOWAIT) != -1){
 
-            insert_into_list(list, sig.pid);
-            
-            if(strcmp(actions.action, "IncreaseDelay") == 0){
-              kill(sig.pid, SIGUSR1);
+          if(strcmp(actions.action, "IncreaseDelay") == 0){
+            while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){
+              kill(sigInc.pid, SIGUSR1);
             }
-            if(strcmp(actions.action, "RemoveMsg") == 0){
+          }
+
+            if(strcmp(actions.action, "RemoveMSG") == 0){
               printf("RMVMSG\n");
-              kill(sig.pid, SIGKILL);
+              while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){
+                kill(sigRmv.pid, SIGKILL);
+              }
             }
-            if(strcmp(actions.action, "SendMsg") == 0){
+
+            if(strcmp(actions.action, "SendMSG") == 0){
               kill(pids.pid_S[0], SIGALRM);
             }
-
-          }
 
         }else if(strcmp(actions.target, "S2") == 0){
 
@@ -85,7 +96,7 @@ int main(int argc, char * argv[]){
             kill(pids.pid_S[1], SIGUSR1);
           }else if(strcmp(actions.action, "RemoveMsg") == 0){
             kill(pids.pid_S[1], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMsg") == 0){
+          }else if(strcmp(actions.action, "SendMSG") == 0){
             kill(pids.pid_S[1], SIGALRM);
           }
 
@@ -93,9 +104,9 @@ int main(int argc, char * argv[]){
 
           if(strcmp(actions.action, "IncreaseDelay") == 0){
             kill(pids.pid_S[2], SIGUSR1);
-          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+          }else if(strcmp(actions.action, "RemoveMSG") == 0){
             kill(pids.pid_S[2], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMsg") == 0){
+          }else if(strcmp(actions.action, "SendMSG") == 0){
             kill(pids.pid_S[2], SIGALRM);
           }
 
@@ -103,9 +114,9 @@ int main(int argc, char * argv[]){
 
           if(strcmp(actions.action, "IncreaseDelay") == 0){
             kill(pids.pid_R[0], SIGUSR1);
-          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+          }else if(strcmp(actions.action, "RemoveMSG") == 0){
             kill(pids.pid_R[0], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMsg") == 0){
+          }else if(strcmp(actions.action, "SendMSG") == 0){
             kill(pids.pid_R[0], SIGALRM);
           }
 
@@ -113,9 +124,9 @@ int main(int argc, char * argv[]){
 
           if(strcmp(actions.action, "IncreaseDelay") == 0){
             kill(pids.pid_R[1], SIGUSR1);
-          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+          }else if(strcmp(actions.action, "RemoveMSG") == 0){
             kill(pids.pid_R[1], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMsg") == 0){
+          }else if(strcmp(actions.action, "SendMSG") == 0){
             kill(pids.pid_R[1], SIGALRM);
           }
 
@@ -123,9 +134,9 @@ int main(int argc, char * argv[]){
 
           if(strcmp(actions.action, "IncreaseDelay") == 0){
             kill(pids.pid_R[2], SIGUSR1);
-          }else if(strcmp(actions.action, "RemoveMsg") == 0){
+          }else if(strcmp(actions.action, "RemoveMSG") == 0){
             kill(pids.pid_R[2], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMsg") == 0){
+          }else if(strcmp(actions.action, "SendMSG") == 0){
             kill(pids.pid_R[2], SIGALRM);
           }
 
@@ -148,6 +159,15 @@ int main(int argc, char * argv[]){
     printf("child with pid %d exited, status = %d\n", pid, WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
     i++;
   }
+
+  if(msgctl(mqInc_id, IPC_RMID, NULL) == -1){
+    ErrExit("close of MSG QUEUE mqInc");
+  }
+
+  if(msgctl(mqRmv_id, IPC_RMID, NULL) == -1){
+    ErrExit("close of MSG QUEUE mqRmv");
+  }
+  
   return 0;
 
 }

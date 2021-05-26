@@ -70,14 +70,6 @@ struct signal{
   int pid;
 };
 
-struct node_t{
-    int value;
-    struct node_t *next;
-};
-
-struct list_t{
-    struct node_t *head;
-};
 
 // dichiarazione funzione per riempire la struct con i relativi campi in F0
 struct msg fill_structure(char buffer[],int j);
@@ -105,10 +97,7 @@ struct container init_container(struct container msgFile);
 struct msg init_msg(struct msg message);
 
 struct pid get_pidF8(struct pid pid);
+
 struct pid get_pidF9(struct pid pid);
 
 struct hackler fill_hackler_structure(char buffer[],int j);
-
-struct list_t *new_list();
-
-void insert_into_list(struct list_t *list, int value); //per l'inserimento “ordinato” del numero value all'interno della lista list

@@ -13,7 +13,6 @@
 
 void sigHandler(int sig){
   if(sig == SIGUSR1){
-    printf("SIGUSR1 CATCHED\n");
     sleep(5);
   }
 
@@ -184,6 +183,17 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+  struct signal sigSnd; //MQ per SendMSG
+
+  sigSnd.mtype = 1;
+
+  key_t mqSnd_Key = ftok("fifo.c", 'B');
+  int mqSnd_id = msgget(mqSnd_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqSnd_id == -1){
+    ErrExit("internal msgget failed");
+  }
+
   //==================================================================================
   //creazione dei semafori
 
@@ -223,6 +233,24 @@ int main(int argc, char * argv[]) {
 
   if(semctl(semid2, 0, SETALL, arg1) == -1){
     ErrExit("semctl failed");
+  }
+
+  //==================================================================================
+  //creazione dei semafori per la scrittura di F8
+
+  key_t semKey3 = ftok("defines.c", 'E');
+  int semid3 = semget(semKey3, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid3 == -1){
+    ErrExit("semget failed");
+  }
+
+  unsigned short semInitVal2[] = {0};
+  union semun arg2;
+  arg2.array = semInitVal2;
+
+  if(semctl(semid3, 0, SETALL, arg2) == -1){
+    ErrExit("semctl failed (semid3)");
   }
 
   //===================================================================================
@@ -296,6 +324,7 @@ int main(int argc, char * argv[]) {
     }
 
     ssize_t numWrite = write(F1, heading, strlen(heading)); //scriviamo l'intestazione sul file F1.csv
+
     if(numWrite != strlen(heading)){
       ErrExit("write F1 failed");
     }
@@ -339,6 +368,12 @@ int main(int argc, char * argv[]) {
 
           if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
             ErrExit("Sending pid to Hackler failed (S1 - RMV)");
+          }
+
+          sigSnd.pid = pid;
+
+          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (S1 - SND)");
           }
         }
 
@@ -981,7 +1016,7 @@ exit(0);  //terminazione S3
   //==============================ESECUZIONE PADRE========================================//
 
   writeF8(pid_S);  //scrittura del file F8.csv
-
+  semOp(semid3, 0, 1);
 
   int status = 0;
   int i = 0;
@@ -1051,7 +1086,7 @@ exit(0);  //terminazione S3
     ErrExit("close of MSG QUEUE beetween Senders and children failed");
   }
 
-  
+
   historical[3] = get_time(historical[3], 'd');
 
   //rimozione del semaforo

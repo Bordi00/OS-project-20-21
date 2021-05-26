@@ -2,6 +2,7 @@
 /// @brief Contiene l'implementazione del client.
 
 #include "defines.h"
+#include "semaphore.h"
 #include <sys/msg.h>
 
 int main(int argc, char * argv[]){
@@ -29,6 +30,53 @@ int main(int argc, char * argv[]){
     ErrExit("internal msgget failed");
   }
 
+  struct signal sigSnd; //MQ per SendMSG
+
+  sigSnd.mtype = 1;
+
+  key_t mqSnd_Key = ftok("fifo.c", 'B');
+  int mqSnd_id = msgget(mqSnd_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqSnd_id == -1){
+    ErrExit("internal msgget failed");
+  }
+
+  //==================================================================================
+  //creazione dei semafori per la scrittura di F8
+
+  key_t semKey3 = ftok("defines.c", 'E');
+  int semid3 = semget(semKey3, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid3 == -1){
+    ErrExit("semget failed");
+  }
+
+  unsigned short semInitVal2[1];
+  union semun arg2;
+  arg2.array = semInitVal2;
+
+  if(semctl(semid3, 0, GETALL, arg2) == -1){
+    ErrExit("semctl failed (semid3)");
+  }
+
+  //==================================================================================
+  //creazione dei semafori per la scrittura di F8
+
+  key_t semKey9 = ftok("defines.c", 'U');
+  int semid9 = semget(semKey9, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid9 == -1){
+    ErrExit("semget failed");
+  }
+
+  unsigned short semInitVal9[1];
+  union semun arg9;
+  arg9.array = semInitVal9;
+
+  if(semctl(semid9, 0, GETALL, arg9) == -1){
+    ErrExit("semctl failed (semid9)");
+  }
+
   //ottengo la directory corrente e concateno con la stringa mancante per compatibilità con altri OS
   getcwd(path, PATH_SZ);
   strcat(path, argv[1]); //path contiene il percorso dove risiede F7
@@ -42,10 +90,12 @@ int main(int argc, char * argv[]){
 
   struct pid pids = {};
 
-  do{
-    pids = get_pidF8(pids);
-    pids = get_pidF9(pids);
-  }while(pids.pid_S[2] == 0 || pids.pid_R[2] == 0);
+
+  semOp(semid3, 0, -1);
+  pids = get_pidF8(pids);
+
+  semOp(semid9, 0, -1);
+  pids = get_pidF9(pids);
 
   ssize_t numRead;
   int i = 0;
@@ -75,19 +125,23 @@ int main(int argc, char * argv[]){
 
           if(strcmp(actions.action, "IncreaseDelay") == 0){
             while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){
+              printf("SIGUSR1 %d\n", sigInc.pid);
               kill(sigInc.pid, SIGUSR1);
             }
           }
 
             if(strcmp(actions.action, "RemoveMSG") == 0){
-              printf("RMVMSG\n");
               while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){
+                printf("RMVMSG %d\n", sigRmv.pid);
                 kill(sigRmv.pid, SIGKILL);
               }
             }
 
             if(strcmp(actions.action, "SendMSG") == 0){
-              kill(pids.pid_S[0], SIGALRM);
+              printf("SNDMSG\n");
+              while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){
+                kill(sigSnd.pid, SIGCONT);
+              }
             }
 
         }else if(strcmp(actions.target, "S2") == 0){
@@ -167,7 +221,19 @@ int main(int argc, char * argv[]){
   if(msgctl(mqRmv_id, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE mqRmv");
   }
-  
+
+  if(msgctl(mqSnd_id, IPC_RMID, NULL) == -1){
+    ErrExit("close of MSG QUEUE mqSnd");
+  }
+
+  //rimozione del semaforo
+  if(semctl(semid3, 0, IPC_RMID, 0) == -1)
+    ErrExit("semctl(3) failed");
+
+  //rimozione del semaforo
+  if(semctl(semid9, 0, IPC_RMID, 0) == -1)
+    ErrExit("semctl(9) failed");
+
   return 0;
 
 }

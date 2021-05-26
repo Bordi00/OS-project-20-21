@@ -13,6 +13,25 @@
 
 
 int main(int argc, char * argv[]) {
+
+  //==================================================================================
+  //creazione dei semafori per la scrittura di F9
+
+  key_t semKey9 = ftok("defines.c", 'U');
+  int semid9 = semget(semKey9, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid9 == -1){
+    ErrExit("semget failed");
+  }
+
+  unsigned short semInitVal9[] = {0};
+  union semun arg9;
+  arg9.array = semInitVal9;
+
+  if(semctl(semid9, 0, SETALL, arg9) == -1){
+    ErrExit("semctl failed (semid9)");
+  }
+
   //storico delle ipc utilizzate da RM
   struct ipc historical[6] = {};
 
@@ -717,7 +736,8 @@ exit(0);
   int i = 0;
 
   writeF9(pid_R);
-
+  semOp(semid9, 0, 1);
+  
   while((pid = wait(&status)) != -1){
     printf("R%i %d exited, status = %d\n", i + 1, pid_R[i], WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
     i++;

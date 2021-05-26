@@ -1,6 +1,6 @@
 /// @file defines.c
 /// @brief Contiene l'implementazione delle funzioni
-///         specifiche del progetto.
+///specifiche del progetto.
 
 #include "defines.h"
 
@@ -435,6 +435,7 @@ struct container init_container(struct container msgFile){
 	return msgFile;
 
 }
+
 struct msg init_msg(struct msg message){
 		strcpy(message.id, "");
 		strcpy(message.message, "");
@@ -454,11 +455,9 @@ struct pid get_pidF8(struct pid pid){
 	char bufferF8[50];
 	char pidF8[5];
 
-	do{
-		F8 = open("OutputFiles/F8.csv", O_RDONLY, S_IRUSR);
-	}while(F8 == -1);
-
+	F8 = open("OutputFiles/F8.csv", O_RDONLY, S_IRUSR);
 	read(F8, &bufferF8, sizeof(bufferF8));
+
 
 	int indexF8;
 	int i = 0;
@@ -491,9 +490,7 @@ struct pid get_pidF9(struct pid pid){
 	char bufferF9[50];
 	char pidF9[5];
 
-	do{
-		F9 = open("OutputFiles/F9.csv", O_RDONLY, S_IRUSR);
-	}while(F9 == -1);
+	F9 = open("OutputFiles/F9.csv", O_RDONLY, S_IRUSR);
 
 	read(F9, &bufferF9, sizeof(bufferF9));
 

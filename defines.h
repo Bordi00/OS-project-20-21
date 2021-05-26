@@ -19,7 +19,7 @@
 #include "semaphore.h"
 #include "err_exit.h"
 
-#define BUFFER_SZ 100
+#define BUFFER_SZ 1000
 #define PATH_SZ 100
 char buffer[BUFFER_SZ + 1];
 char path[PATH_SZ + 1];

@@ -147,12 +147,25 @@ int main(int argc, char * argv[]){
         }else if(strcmp(actions.target, "S2") == 0){
 
           if(strcmp(actions.action, "IncreaseDelay") == 0){
-            kill(pids.pid_S[1], SIGUSR1);
-          }else if(strcmp(actions.action, "RemoveMsg") == 0){
-            kill(pids.pid_S[1], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMSG") == 0){
-            kill(pids.pid_S[1], SIGALRM);
+            while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 2 , IPC_NOWAIT) != -1){
+              printf("SIGUSR1 %d\n", sigInc.pid);
+              kill(sigInc.pid, SIGUSR1);
+            }
           }
+
+            if(strcmp(actions.action, "RemoveMSG") == 0){
+              while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 2 , IPC_NOWAIT) != -1){
+                printf("RMVMSG %d\n", sigRmv.pid);
+                kill(sigRmv.pid, SIGKILL);
+              }
+            }
+
+            if(strcmp(actions.action, "SendMSG") == 0){
+              printf("SNDMSG\n");
+              while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 2 , IPC_NOWAIT) != -1){
+                kill(sigSnd.pid, SIGCONT);
+              }
+            }
 
         }else if(strcmp(actions.target, "S3") == 0){
 

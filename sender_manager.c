@@ -11,14 +11,22 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 
+bool wait_time = true;
+
 void sigHandler(int sig){
   if(sig == SIGUSR1){
     sleep(5);
   }
 
+  if(sig == SIGCONT){
+    wait_time = false;
+  }
+
 }
 
 int main(int argc, char * argv[]) {
+
+  bool *check_time = &wait_time; //modifica il wait_time
 
   struct ipc historical[5] = {};
 
@@ -36,7 +44,7 @@ int main(int argc, char * argv[]) {
     ErrExit("Error open F10");
   }
 
-  if(signal(SIGUSR1, sigHandler) == SIG_ERR){
+  if(signal(SIGUSR1, sigHandler) == SIG_ERR || signal(SIGCONT, sigHandler) == SIG_ERR){
     ErrExit("changing signal handler failed");
   }
   //================================================================================
@@ -378,10 +386,11 @@ int main(int argc, char * argv[]) {
         }
 
         if(pid == 0){ //sono nel figlio
-          int sec = 0;
+          int sec;
 
-          if((sec = sleep(atoi(message.delS1))) > 0){ //il figlio dorme per DelS1 secondi
+          if((sec = sleep(atoi(message.delS1))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
             sleep(sec);
+            *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
           }
 
           internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
@@ -628,8 +637,41 @@ exit(0);  //terminazione S1
       ErrExit("creation child of S2 failed");
     }
 
+
+    if(pid > 0){
+      //mandare il pid sulla MQ e cambio mtype
+      sigInc.mtype = 2;
+      sigInc.pid = pid;
+
+      if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+        ErrExit("Sending pid to Hackler failed (S2 - INC)");
+      }
+
+      sigRmv.mtype = 2;
+      sigRmv.pid = pid;
+
+      if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+        ErrExit("Sending pid to Hackler failed (S2 - RMV)");
+      }
+
+      sigSnd.mtype = 2;
+      sigSnd.pid = pid;
+
+      if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+        ErrExit("Sending pid to Hackler failed (S2 - SND)");
+      }
+
+    }
+
+
     if(pid == 0){ //sono nel figlio
-      sleep(atoi(message.delS2)); //il figlio dorme per DelS2 secondi
+      int sec;
+
+      if((sec = sleep(atoi(message.delS2))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+        sleep(sec);
+        *check_time = false;
+      }
+
       internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
       internal_msg.mtype = 2; //cambiamo l'mtype per sapere quali messaggi S2 deve leggere dalla msg queue
       internal_msg.msgFile = get_time_departure(internal_msg.msgFile);

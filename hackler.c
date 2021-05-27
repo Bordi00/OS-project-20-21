@@ -194,22 +194,50 @@ int main(int argc, char * argv[]){
         }else if(strcmp(actions.target, "R1") == 0){
 
           if(strcmp(actions.action, "IncreaseDelay") == 0){
-            kill(pids.pid_R[0], SIGUSR1);
-          }else if(strcmp(actions.action, "RemoveMSG") == 0){
-            kill(pids.pid_R[0], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMSG") == 0){
-            kill(pids.pid_R[0], SIGALRM);
+            while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 6 , IPC_NOWAIT) != -1){
+              printf("SIGUSR1 %d\n", sigInc.pid);
+              kill(sigInc.pid, SIGUSR1);
+            }
           }
+
+          if(strcmp(actions.action, "RemoveMSG") == 0){
+            while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 6 , IPC_NOWAIT) != -1){
+              printf("RMVMSG %d\n", sigRmv.pid);
+              kill(sigRmv.pid, SIGKILL);
+            }
+          }
+
+          if(strcmp(actions.action, "SendMSG") == 0){
+            printf("SNDMSG\n");
+            while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 6 , IPC_NOWAIT) != -1){
+              kill(sigSnd.pid, SIGCONT);
+            }
+          }
+
 
         }else if(strcmp(actions.target, "R2") == 0){
 
           if(strcmp(actions.action, "IncreaseDelay") == 0){
-            kill(pids.pid_R[1], SIGUSR1);
-          }else if(strcmp(actions.action, "RemoveMSG") == 0){
-            kill(pids.pid_R[1], SIGUSR2);
-          }else if(strcmp(actions.action, "SendMSG") == 0){
-            kill(pids.pid_R[1], SIGALRM);
+            while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 5 , IPC_NOWAIT) != -1){
+              printf("SIGUSR1 %d\n", sigInc.pid);
+              kill(sigInc.pid, SIGUSR1);
+            }
           }
+
+          if(strcmp(actions.action, "RemoveMSG") == 0){
+            while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 5 , IPC_NOWAIT) != -1){
+              printf("RMVMSG %d\n", sigRmv.pid);
+              kill(sigRmv.pid, SIGKILL);
+            }
+          }
+
+          if(strcmp(actions.action, "SendMSG") == 0){
+            printf("SNDMSG\n");
+            while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 5 , IPC_NOWAIT) != -1){
+              kill(sigSnd.pid, SIGCONT);
+            }
+          }
+
 
         }else if(strcmp(actions.target, "R3") == 0){
 
@@ -254,6 +282,7 @@ int main(int argc, char * argv[]){
     i++;
   }
 
+/*
   if(msgctl(mqInc_id, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE mqInc");
   }
@@ -265,7 +294,7 @@ int main(int argc, char * argv[]){
   if(msgctl(mqSnd_id, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE mqSnd");
   }
-
+*/
   //rimozione del semaforo
   if(semctl(semid3, 0, IPC_RMID, 0) == -1)
   ErrExit("semctl(3) failed");

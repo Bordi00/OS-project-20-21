@@ -6,5 +6,5 @@ ID;Message;IDSender;IDReceiver;DelS1;DelS2;DelS3;Type
 5;Amico;S3;R2;2;4;1;FIFO
 6;Tempo;S3;R2;5;4;7;Q
 7;Oggi;S3;R3;3;2;2;FIFO
-8;Arrivederci;S1;R1;2;-;-;SH
+8;Arrivederci;S1;R1;3;-;-;SH
 9;Fine;S2;R1;4;2;-;Q

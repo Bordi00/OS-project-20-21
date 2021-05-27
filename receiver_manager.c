@@ -34,6 +34,8 @@ int main(int argc, char * argv[]) {
 
   bool *check_time = &wait_time;
 
+  //storico delle ipc utilizzate da RM
+  struct ipc historical[6] = {};
   //==================================================================================
   //creazione dei semafori per la scrittura di F9
 
@@ -52,8 +54,23 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed (semid9)");
   }
 
-  //storico delle ipc utilizzate da RM
-  struct ipc historical[6] = {};
+  //==================================================================================
+  //creazione dei semafori per la fifo
+
+  key_t semKey_f = ftok("defines.c", 'M');
+  int semid_f = semget(semKey_f, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid_f == -1){
+    ErrExit("semget failed semid_f");
+  }
+
+  unsigned short semInitVal_f[1];
+  union semun arg_f;
+  arg_f.array = semInitVal_f;
+
+  if(semctl(semid_f, 0, GETALL, arg_f) == -1){
+    ErrExit("semctl failed semid_f");
+  }
 
   //su F10 scriviamo lo storico delle IPC utilizzate
   int F10 = open("OutputFiles/F10.csv", O_WRONLY | O_CREAT | O_APPEND, S_IWUSR | S_IRUSR);
@@ -299,6 +316,8 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
   }
 
   int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
+  semOp(semid_f, 0, 1);
+
   ssize_t nBys;
   bool conditions[3] = {false};
 
@@ -310,6 +329,7 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
 
     //========================FIFO=============================//
     nBys = read(fifo, &internal_msg.m_message, sizeof(struct msg));
+
     if(nBys > 0){
       //printf("message %s with id %s arrived in RM via FIFO\n", internal_msg.m_message.message, internal_msg.m_message.id);
       internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
@@ -340,10 +360,11 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
 
       if(pid == 0){ //sono nel figlio
         int sec;
-
-        if((sec = sleep(atoi(internal_msg.m_message.delS3))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
-          sleep(sec);
-          *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+        if(strcmp(internal_msg.m_message.delS3, "-") != 0){
+          if((sec = sleep(atoi(internal_msg.m_message.delS3))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+            sleep(sec);
+            *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+          }
         }
         internal_msg.mtype = 3;
 
@@ -571,7 +592,7 @@ exit(0);
     internal_msg.m_message = init_msg(internal_msg.m_message);
 
     if(conditions[0] == false)
-    nBys = read(pipe3[0], &internal_msg.m_message, sizeof(internal_msg.m_message));
+      nBys = read(pipe3[0], &internal_msg.m_message, sizeof(internal_msg.m_message));
 
     if(nBys > 0){
       if(strcmp(internal_msg.m_message.id, "-1") == 0){
@@ -583,10 +604,38 @@ exit(0);
 
         pid = fork();
 
-        if(pid == 0){
-          if(strcmp(internal_msg.m_message.delS2, "-") != 0)
-          sleep(atoi(internal_msg.m_message.delS2));
+        if(pid > 0){
+          //mandare il pid sulla MQ e cambio mtype
+          sigInc.pid = pid;
+          sigInc.mtype = 5;
 
+          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - INC)");
+          }
+
+          sigRmv.pid = pid;
+          sigRmv.mtype = 5;
+
+          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - RMV)");
+          }
+
+          sigSnd.pid = pid;
+          sigSnd.mtype = 5;
+
+          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - SND)");
+          }
+        }
+
+        if(pid == 0){ //sono nel figlio
+          int sec;
+          if(strcmp(internal_msg.m_message.delS2, "-") != 0){
+            if((sec = sleep(atoi(internal_msg.m_message.delS2))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+              sleep(sec);
+              *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+            }
+          }
           internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 2;
 
@@ -613,12 +662,40 @@ exit(0);
         internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
 
         pid = fork();
+        if(pid > 0){
+          //mandare il pid sulla MQ e cambio mtype
+          sigInc.pid = pid;
+          sigInc.mtype = 5;
+
+          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - INC)");
+          }
+
+          sigRmv.mtype = 5;
+          sigRmv.pid = pid;
+
+          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - RMV)");
+          }
+
+          sigSnd.pid = pid;
+          sigSnd.mtype = 5;
+
+          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - SND)");
+          }
+        }
 
         if(pid == 0){
-          internal_msg.m_message = m.m_message;
-          if(strcmp(internal_msg.m_message.delS2, "-") != 0)
-          sleep(atoi(internal_msg.m_message.delS2));
+          int sec;
 
+          internal_msg.m_message = m.m_message;
+          if(strcmp(internal_msg.m_message.delS2, "-") != 0 ){
+            if((sec = sleep(atoi(internal_msg.m_message.delS2))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+              sleep(sec);
+              *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+            }
+          }
           internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 2;
 
@@ -652,10 +729,38 @@ exit(0);
 
         pid = fork();
 
-        if(pid == 0){
-          if(strcmp(internal_msg.m_message.delS2, "-") != 0)
-          sleep(atoi(internal_msg.m_message.delS2));
+        if(pid > 0){
+          //mandare il pid sulla MQ e cambio mtype
+          sigInc.pid = pid;
+          sigInc.mtype = 5;
 
+          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - INC)");
+          }
+
+          sigRmv.pid = pid;
+          sigRmv.mtype = 5;
+
+          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - RMV)");
+          }
+
+          sigSnd.pid = pid;
+          sigSnd.mtype = 5;
+
+          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R2 - SND)");
+          }
+        }
+
+        if(pid == 0){ //sono nel figlio
+          int sec;
+          if(strcmp(internal_msg.m_message.delS2, "-") != 0){
+            if((sec = sleep(atoi(internal_msg.m_message.delS2))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+              sleep(sec);
+              *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+            }
+          }
           internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 2;
 
@@ -741,21 +846,49 @@ exit(0);
     internal_msg.m_message = init_msg(internal_msg.m_message);
 
     if(conditions[0] == false)
-    nBys = read(pipe4[0], &internal_msg.m_message, sizeof(internal_msg.m_message));
+      nBys = read(pipe4[0], &internal_msg.m_message, sizeof(internal_msg.m_message));
 
     if(nBys > 0){
       if(strcmp(internal_msg.m_message.id, "-1") == 0){
         //printf("Pipe receive msg -1\n");
         conditions[0] = true;
+        nBys = 0;
       }else{
         internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
 
         pid = fork();
+        if(pid > 0){
+          //mandare il pid sulla MQ e cambio mtype
+          sigInc.pid = pid;
+          sigInc.mtype = 6;
 
-        if(pid == 0){
-          if(strcmp(internal_msg.m_message.delS1, "-") != 0)
-          sleep(atoi(internal_msg.m_message.delS1));
+          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - INC)");
+          }
 
+          sigRmv.pid = pid;
+          sigRmv.mtype = 6;
+
+          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - RMV)");
+          }
+
+          sigSnd.pid = pid;
+          sigSnd.mtype = 6;
+
+          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - SND)");
+          }
+        }
+
+        if(pid == 0){ //sono nel figlio
+          int sec;
+          if(strcmp(internal_msg.m_message.delS1, "-") != 0){
+            if((sec = sleep(atoi(internal_msg.m_message.delS1))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+              sleep(sec);
+              *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+            }
+          }
           internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 1;
 
@@ -784,11 +917,41 @@ exit(0);
         internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);
 
         pid = fork();
+        if(pid > 0){
+          //mandare il pid sulla MQ e cambio mtype
+          sigInc.pid = pid;
+          sigInc.mtype = 6;
+
+          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - INC)");
+          }
+
+          sigRmv.mtype = 6;
+          sigRmv.pid = pid;
+
+          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - RMV)");
+          }
+
+          sigSnd.pid = pid;
+          sigSnd.mtype = 6;
+
+          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - SND)");
+          }
+        }
 
         if(pid == 0){
+          int sec;
+
           internal_msg.m_message = m.m_message;
-          if(strcmp(internal_msg.m_message.delS1, "-") != 0)
-          sleep(atoi(internal_msg.m_message.delS1));
+          if(strcmp(internal_msg.m_message.delS1, "-") != 0 ){
+            if((sec = sleep(atoi(internal_msg.m_message.delS1))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+              sleep(sec);
+              *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+            }
+          }
+
 
           internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 1;
@@ -823,10 +986,38 @@ exit(0);
 
         pid = fork();
 
-        if(pid == 0){
-          if(strcmp(internal_msg.m_message.delS1, "-") != 0)
-          sleep(atoi(internal_msg.m_message.delS1));
+        if(pid > 0){
+          //mandare il pid sulla MQ e cambio mtype
+          sigInc.pid = pid;
+          sigInc.mtype = 6;
 
+          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - INC)");
+          }
+
+          sigRmv.pid = pid;
+          sigRmv.mtype = 6;
+
+          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - RMV)");
+          }
+
+          sigSnd.pid = pid;
+          sigSnd.mtype = 6;
+
+          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+            ErrExit("Sending pid to Hackler failed (R1 - SND)");
+          }
+        }
+
+        if(pid == 0){ //sono nel figlio
+          int sec;
+          if(strcmp(internal_msg.m_message.delS1, "-") != 0){
+            if((sec = sleep(atoi(internal_msg.m_message.delS1))) > 0 && wait_time == true){ //il figlio dorme per DelS1 secondi
+              sleep(sec);
+              *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+            }
+          }
           internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 1;
 

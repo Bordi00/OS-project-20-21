@@ -261,6 +261,24 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed (semid3)");
   }
 
+  //==================================================================================
+  //creazione dei semafori per la fifo
+
+  key_t semKey_f = ftok("defines.c", 'M');
+  int semid_f = semget(semKey_f, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid_f == -1){
+    ErrExit("semget failed semid_f");
+  }
+
+  unsigned short semInitVal_f[] = {0};
+  union semun arg_f;
+  arg_f.array = semInitVal_f;
+
+  if(semctl(semid_f, 0, SETALL, arg_f) == -1){
+    ErrExit("semctl failed semid_f");
+  }
+
   //===================================================================================
   //generazione dei processi figlio
 
@@ -858,7 +876,14 @@ exit(0);  //terminazione S2
   }
 
   ssize_t nBys;
-  int fifo;
+
+  semOp(semid_f, 0, -1);
+  int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY); //apro il file descriptor relativo alla FIFO in sola scrittura
+
+  if(fifo == -1){
+    ErrExit("open (fifo) failed");
+  }
+
   //inizializzimo una struttura di tipo msg che servirà a comunicare che non ci sono più messaggi
   struct msg message = {"", "", "", "", "", "", "", ""};
   ssize_t internal_mSize = sizeof(struct child) - sizeof(long); //per la msgqueue tra Senders e i propri figli
@@ -981,12 +1006,6 @@ exit(0);  //terminazione S2
 
       if(strcmp(internal_msg.m_message.type, "FIFO") == 0 || strcmp(internal_msg.m_message.type, "PIPE") == 0){  //FIFO
 
-        fifo = open("OutputFiles/my_fifo.txt", O_WRONLY | O_NONBLOCK); //apro il file descriptor relativo alla FIFO in sola scrittura
-
-        if(fifo == -1){
-          ErrExit("open (fifo) failed");
-        }
-
         numWrite = write(fifo, &internal_msg.m_message, sizeof(internal_msg.m_message));  // scrivo il messaggio sulla FIFO
 
         if(numWrite != sizeof(internal_msg.m_message)){
@@ -1054,12 +1073,6 @@ exit(0);  //terminazione S2
     }
 
     if(strcmp(internal_msg.m_message.type, "FIFO") == 0 || strcmp(internal_msg.m_message.type, "PIPE") == 0){  //FIFO
-
-      fifo = open("OutputFiles/my_fifo.txt", O_WRONLY | O_NONBLOCK); //apro il file descriptor relativo alla FIFO in sola scrittura
-
-      if(fifo == -1){
-        ErrExit("open (fifo) failed");
-      }
 
       numWrite = write(fifo, &internal_msg.m_message, sizeof(internal_msg.m_message));  // scrivo il messaggio sulla FIFO
 

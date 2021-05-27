@@ -1,0 +1,8 @@
+Id;Message;IDSender;IDReceiver;TimeArrival;TimeDeparture
+2;Come va?;3;1;12:16:51;12:16:52
+5;Amico;3;2;12:16:52;12:16:53
+9;Fine;2;1;12:16:52;12:16:53
+3;MyMsg;2;3;12:16:52;12:16:53
+6;Tempo;3;2;12:16:52;12:16:53
+4;OurMsg;3;2;12:16:52;12:16:53
+7;Oggi;3;3;12:16:52;12:16:53

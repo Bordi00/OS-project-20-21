@@ -77,6 +77,24 @@ int main(int argc, char * argv[]){
     ErrExit("semctl failed (semid9)");
   }
 
+  //==================================================================================
+  //creazione dei semafori per sincronizzare chiusura MSQ tra S,R e H
+
+  key_t semKeySRH = ftok("defines.c", 'G');
+  int semidSRH = semget(semKeySRH, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semidSRH == -1){
+    ErrExit("semget failed semidSRH (R)");
+  }
+
+  unsigned short semInitValSRH[1];
+  union semun argSRH;
+  argSRH.array = semInitValSRH;
+
+  if(semctl(semidSRH, 0, GETALL, argSRH) == -1){
+    ErrExit("semctl failed semidSRH(R)");
+  }
+
   //ottengo la directory corrente e concateno con la stringa mancante per compatibilità con altri OS
   getcwd(path, PATH_SZ);
   strcat(path, argv[1]); //path contiene il percorso dove risiede F7
@@ -282,7 +300,11 @@ int main(int argc, char * argv[]){
     i++;
   }
 
-/*
+
+  printf("SRH Hackler before Semaphore\n");
+  semOp(semidSRH, 0, 0);
+  printf("SRH Hackler\n");
+
   if(msgctl(mqInc_id, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE mqInc");
   }
@@ -294,10 +316,14 @@ int main(int argc, char * argv[]){
   if(msgctl(mqSnd_id, IPC_RMID, NULL) == -1){
     ErrExit("close of MSG QUEUE mqSnd");
   }
-*/
+
   //rimozione del semaforo
   if(semctl(semid3, 0, IPC_RMID, 0) == -1)
   ErrExit("semctl(3) failed");
+
+  //rimozione del semaforo
+  if(semctl(semidSRH, 0, IPC_RMID, 0) == -1)
+  ErrExit("semctl(srh) failed");
 
   //rimozione del semaforo
   if(semctl(semid9, 0, IPC_RMID, 0) == -1)

@@ -279,6 +279,24 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed semid_f");
   }
 
+  //==================================================================================
+  //creazione dei semafori per sincronizzare chiusura MSQ tra S,R e H
+
+  key_t semKeySRH = ftok("defines.c", 'G');
+  int semidSRH = semget(semKeySRH, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semidSRH == -1){
+    ErrExit("semget failed semidSRH");
+  }
+
+  unsigned short semInitValSRH[] = {2};
+  union semun argSRH;
+  argSRH.array = semInitValSRH;
+
+  if(semctl(semidSRH, 0, SETALL, argSRH) == -1){
+    ErrExit("semctl failed semidSRH");
+  }
+
   //===================================================================================
   //generazione dei processi figlio
 
@@ -877,8 +895,11 @@ exit(0);  //terminazione S2
 
   ssize_t nBys;
 
+  printf("SM BEFORE OPEN FIFO\n");
   semOp(semid_f, 0, -1);
+  printf("SM AFTER SEMID_F\n");
   int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY); //apro il file descriptor relativo alla FIFO in sola scrittura
+  printf("SM AFTER OPEN FIFO\n");
 
   if(fifo == -1){
     ErrExit("open (fifo) failed");
@@ -1130,6 +1151,9 @@ exit(0);  //terminazione S3
     ErrExit("close pipe2 read end in father failed");
   }
 
+  semOp(semidSRH, 0, -1);
+  printf("SRH Sender\n");
+
   historical[0] = get_time(historical[0], 'd');
   historical[1] = get_time(historical[1], 'd');
 
@@ -1176,10 +1200,16 @@ exit(0);  //terminazione S3
   historical[3] = get_time(historical[3], 'd');
 
   //rimozione del semaforo
-  if(semctl(semid, 0, IPC_RMID, 0) == -1)
-  ErrExit("semctl failed");
+  if(semctl(semid, 0, IPC_RMID, 0) == -1){
+    ErrExit("semctl failed");
+  }
 
   historical[4] = get_time(historical[4], 'd');
+
+  //rimozione del semaforo
+  if(semctl(semid_f, 0, IPC_RMID, 0) == -1){
+    ErrExit("semctl failed");
+  }
 
   for(int i = 0; i < 5; i++){
     semOp(semid2, 0, -1);

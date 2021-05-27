@@ -252,6 +252,25 @@ if(semctl(semid2, 0, GETALL, arg) == -1){
   ErrExit("semctl failed");
 }
 
+
+  //==================================================================================
+  //creazione dei semafori per sincronizzare chiusura MSQ tra S,R e H
+
+  key_t semKeySRH = ftok("defines.c", 'G');
+  int semidSRH = semget(semKeySRH, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semidSRH == -1){
+    ErrExit("semget failed semidSRH (R)");
+  }
+
+  unsigned short semInitValSRH[1];
+  union semun argSRH;
+  argSRH.array = semInitValSRH;
+
+  if(semctl(semidSRH, 0, GETALL, argSRH) == -1){
+    ErrExit("semctl failed semidSRH(R)");
+  }
+
 //===================================================================
 //generazione di R1, R2, R3
 
@@ -315,8 +334,11 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
     ErrExit("write F4 failed");
   }
 
+  printf("RM BEFORE OPEN FIFO\n");
   int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
+  printf("RM AFTER OPEN FIFO\n");
   semOp(semid_f, 0, 1);
+  printf("RM AFTER SEMAPHORE\n");
 
   ssize_t nBys;
   bool conditions[3] = {false};
@@ -1070,6 +1092,9 @@ exit(0);
     printf("R%i %d exited, status = %d\n", i + 1, pid_R[i], WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
     i++;
   }
+
+  semOp(semidSRH, 0, -1);
+  printf("SRH Receiver\n");
 
   //chiusura pipe 1
   if(close(pipe3[1]) == -1){

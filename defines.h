@@ -37,8 +37,8 @@ struct container{
 struct msg{
   char id[5];
   char message[50];
-  char idSender[3];
-  char idReceiver[3];
+  char idSender[2];
+  char idReceiver[2];
   char delS1[3];
   char delS2[3];
   char delS3[3];

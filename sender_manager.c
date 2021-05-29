@@ -26,9 +26,21 @@ void sigHandler(int sig){
 
 int main(int argc, char * argv[]) {
 
+
+  // set of signals (N.B. it is not initialized!)
+  sigset_t mySet, prevSet;
+  // initialize mySet to contain all signals
+  sigfillset(&mySet);
+  // remove SIGINT from mySet
+  sigdelset(&mySet, SIGTERM);
+  sigdelset(&mySet, SIGUSR1);
+  sigdelset(&mySet, SIGCONT);
+  // blocking all signals but SIGTERM, SIGUSR1, SIGCONT
+  sigprocmask(SIG_SETMASK, &mySet, NULL);
+
   bool *check_time = &wait_time; //modifica il wait_time
 
-  struct ipc historical[5] = {};
+  struct ipc historical[6] = {};
 
   int F10 = open("OutputFiles/F10.csv", O_WRONLY | O_CREAT | O_APPEND, S_IWUSR | S_IRUSR);
 
@@ -229,13 +241,13 @@ int main(int argc, char * argv[]) {
   //creazione dei semafori per la scrittura di F10
 
   key_t semKey2 = ftok("defines.c", 'D');
-  int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semid2 = semget(semKey2, 2, IPC_CREAT | S_IRUSR | S_IWUSR);
 
   if(semid2 == -1){
-    ErrExit("semget failed");
+    ErrExit("semget failed SEMAPHORE_F10 (SM)");
   }
 
-  unsigned short semInitVal1[] = {1};
+  unsigned short semInitVal1[] = {1,2};
   union semun arg1;
   arg1.array = semInitVal1;
 
@@ -271,13 +283,18 @@ int main(int argc, char * argv[]) {
     ErrExit("semget failed semid_f");
   }
 
-  unsigned short semInitVal_f[] = {0};
+  unsigned short semInitVal_f[] = {1};
   union semun arg_f;
   arg_f.array = semInitVal_f;
 
   if(semctl(semid_f, 0, SETALL, arg_f) == -1){
     ErrExit("semctl failed semid_f");
   }
+
+  sprintf(historical[5].idKey, "%x", semKey_f);
+  strcpy(historical[5].ipc, "SEMAPHORE");
+  strcpy(historical[5].creator, "SM");
+  historical[5] = get_time(historical[5], 'c');
 
   //==================================================================================
   //creazione dei semafori per sincronizzare chiusura MSQ tra S,R e H
@@ -295,6 +312,24 @@ int main(int argc, char * argv[]) {
 
   if(semctl(semidSRH, 0, SETALL, argSRH) == -1){
     ErrExit("semctl failed semidSRH");
+  }
+
+  //==================================================================================
+  //creazione dei semafori per la sincronizzazione uscita processi
+
+  key_t semKeyEND = ftok("shared_memory.c", 'C');
+  int semidEND = semget(semKeyEND, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semidEND == -1){
+    ErrExit("semget failed");
+  }
+
+  unsigned short semInitValE[] = {2};
+  union semun argE;
+  argE.array = semInitValE;
+
+  if(semctl(semidEND, 0, SETALL, argE) == -1){
+    ErrExit("semctl failed semidEND");
   }
 
   //===================================================================================
@@ -383,12 +418,10 @@ int main(int argc, char * argv[]) {
     struct msg message = {"", "", "", "", "", "", "", ""};
 
     while((numRead = read(F0, &buffer[i], sizeof(char))) > 0 && buffer[i] != '\0'){ //while che legge carattere per carattere da F0.csv
-      //printf("GLOBAL %d\n", global);
 
       if(buffer[i] == '\n'){  //se i è \n allora siamo alla fine della prima riga ovvero abbiamo trovato il primo messaggio
 
-        strcpy(internal_msg.msgFile.time_arrival, "");  //inizializziamo i campi per la registrazione del tempo di arrivo e partenza dei messaggi
-        strcpy(internal_msg.msgFile.time_departure, "");
+        internal_msg.msgFile = init_container(internal_msg.msgFile);
 
         internal_msg.msgFile = get_time_arrival(internal_msg.msgFile); //segniamo l'ora di arrivo di F0 e la scriviamo in msgF1
         message = fill_structure(buffer, start_line); //riempiamo la struttura message con il messaggio appena letto
@@ -442,6 +475,7 @@ int main(int argc, char * argv[]) {
         if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){ //se non c'è ancora nessun messaggio non si fa nulla
 
       }else{//altrimenti guardiamo chi lo deve inviare
+        strcpy(internal_msg.msgFile.time_departure, "");
         internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
 
         if(strcmp(internal_msg.m_message.idSender, "S1") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S1
@@ -594,7 +628,7 @@ int main(int argc, char * argv[]) {
       //mandiamo ad S2 tramite pipe1
       ssize_t nBys = write(pipe1[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
       if(nBys != sizeof(internal_msg.m_message))
-      ErrExit("write to pipe1 failed");
+        ErrExit("write to pipe1 failed");
 
     }
 
@@ -661,9 +695,7 @@ exit(0);  //terminazione S1
       break;
     }
 
-    strcpy(internal_msg.msgFile.time_arrival, "");  //inizializziamo i campi per la registrazione del tempo di arrivo e partenza dei messaggi
-    strcpy(internal_msg.msgFile.time_departure, "");
-
+    internal_msg.msgFile = init_container(internal_msg.msgFile);
     internal_msg.msgFile = get_time_arrival(internal_msg.msgFile); //registriamo l'ora di arrivo del messaggio
 
     //creo figlio che gestisce il messaggio
@@ -710,7 +742,7 @@ exit(0);  //terminazione S1
 
       internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
       internal_msg.mtype = 2; //cambiamo l'mtype per sapere quali messaggi S2 deve leggere dalla msg queue
-      internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+      //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
 
       if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
         ErrExit("message send failed (S2 child)");
@@ -722,6 +754,9 @@ exit(0);  //terminazione S1
     if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){ //se non ci sono messaggi con mtype 2 nella msgqueue non fa nulla
 
     }else{  //altrimenti guardiamo chi lo deve inviare
+      strcpy(internal_msg.msgFile.time_departure, "");
+      internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+
       if(strcmp(internal_msg.m_message.idSender, "S2") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S2
         //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
         writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F1
@@ -793,7 +828,9 @@ exit(0);  //terminazione S1
     if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
   }else{  //altrimenti guardiamo chi lo deve inviare
-    //printf("GLOBAL S2 %d\n", global);
+    strcpy(internal_msg.msgFile.time_departure, "");
+    internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+
     if(strcmp(internal_msg.m_message.idSender, "S2") == 0){ //se il processo incaricato di trasferire il messaggio al receiver è S2
       //internal_msg.msgFile = get_time_departure(internal_msg.msgFile); // registriamo il tempo di partenza del messaggio
       writeFile(internal_msg.msgFile, internal_msg.m_message, F2);	//scrittura messaggio su F2
@@ -896,7 +933,7 @@ exit(0);  //terminazione S2
   ssize_t nBys;
 
   printf("SM BEFORE OPEN FIFO\n");
-  semOp(semid_f, 0, -1);
+  semOp(semid_f, 0, 0);
   printf("SM AFTER SEMID_F\n");
   int fifo = open("OutputFiles/my_fifo.txt", O_WRONLY); //apro il file descriptor relativo alla FIFO in sola scrittura
   printf("SM AFTER OPEN FIFO\n");
@@ -917,9 +954,7 @@ exit(0);  //terminazione S2
       break;
     }
 
-    strcpy(internal_msg.msgFile.time_arrival, "");  //inizializziamo i campi per la registrazione del tempo di arrivo e partenza dei messaggi
-    strcpy(internal_msg.msgFile.time_departure, "");
-
+    internal_msg.msgFile = init_container(internal_msg.msgFile);
     internal_msg.msgFile = get_time_arrival(internal_msg.msgFile);  //registriamo l'ora di arrivo del messaggio
 
     //creo figlio che gestisce il messaggio
@@ -961,7 +996,7 @@ exit(0);  //terminazione S2
 
       internal_msg.m_message = message; //salva il messaggio all'interno del campo specifico della struttura della msgqueue
       internal_msg.mtype = 3; //cambiamo l'mtype per sapere quali messaggi S3 deve leggere dalla msg queue
-      internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+      //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
 
       if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
         ErrExit("message send failed (S3 child)");
@@ -973,6 +1008,8 @@ exit(0);  //terminazione S2
     if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non ci sono messaggi con mtype 2 nella msgqueue non fa nulla
 
     }else{ //altrimenti guardiamo in che modo dobbiamo inviarlo
+      strcpy(internal_msg.msgFile.time_departure, "");
+      internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
 
       writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F3
       //inviamo il messaggio alla corrispondente IPC
@@ -1040,6 +1077,9 @@ exit(0);  //terminazione S2
     if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
   }else{
+    strcpy(internal_msg.msgFile.time_departure, "");
+    internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+
     writeFile(internal_msg.msgFile, internal_msg.m_message, F3);	//scrittura messaggio su F3
 
     //inviamo il messaggio alla corrispondente IPC
@@ -1134,6 +1174,9 @@ exit(0);  //terminazione S3
     i++;
   }
 
+  semOp(semidSRH, 0, -1);
+  printf("SRH Sender\n");
+
   //chiusura pipe 1
   if(close(pipe1[1]) == -1){
     ErrExit("close pipe1 write end in father failed");
@@ -1147,12 +1190,10 @@ exit(0);  //terminazione S3
   if(close(pipe2[1]) == -1){
     ErrExit("close pipe2 write end in father failed");
   }
+
   if(close(pipe2[0]) == -1){
     ErrExit("close pipe2 read end in father failed");
   }
-
-  semOp(semidSRH, 0, -1);
-  printf("SRH Sender\n");
 
   historical[0] = get_time(historical[0], 'd');
   historical[1] = get_time(historical[1], 'd');
@@ -1211,11 +1252,21 @@ exit(0);  //terminazione S3
     ErrExit("semctl failed");
   }
 
-  for(int i = 0; i < 5; i++){
+  historical[5] = get_time(historical[5], 'd');
+
+  for(int i = 0; i < 6; i++){
     semOp(semid2, 0, -1);
     writeF10(historical[i], F10);
     semOp(semid2, 0, 1);
   }
+
+  if(close(F10) == -1){
+    ErrExit("Close F10 failed");
+  }
+
+  semOp(semidEND, 0, -1);
+
+  sigprocmask(SIG_SETMASK, &prevSet, NULL);
 
   return 0; //terminazione di sender_manager
 

@@ -28,6 +28,24 @@ void sigHandler(int sig){
 
 int main(int argc, char * argv[]) {
 
+  //su F10 scriviamo lo storico delle IPC utilizzate
+  int F10 = open("OutputFiles/F10.csv", O_WRONLY | O_CREAT | O_APPEND, S_IWUSR | S_IRUSR);
+
+  if(F10 == -1){
+    ErrExit("Open F10 failed\n");
+  }
+
+  // set of signals (N.B. it is not initialized!)
+  sigset_t mySet, prevSet;
+  // initialize mySet to contain all signals
+  sigfillset(&mySet);
+  // remove SIGINT from mySet
+  sigdelset(&mySet, SIGTERM);
+  sigdelset(&mySet, SIGUSR1);
+  sigdelset(&mySet, SIGCONT);
+  // blocking all signals but SIGTERM, SIGUSR1, SIGCONT
+  sigprocmask(SIG_SETMASK, &mySet, NULL);
+
   if(signal(SIGUSR1, sigHandler) == SIG_ERR || signal(SIGCONT, sigHandler) == SIG_ERR){
     ErrExit("changing signal handler failed");
   }
@@ -58,7 +76,11 @@ int main(int argc, char * argv[]) {
   //creazione dei semafori per la fifo
 
   key_t semKey_f = ftok("defines.c", 'M');
-  int semid_f = semget(semKey_f, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semid_f;
+
+  do{
+    semid_f = semget(semKey_f, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  }while(semid_f == -1);
 
   if(semid_f == -1){
     ErrExit("semget failed semid_f");
@@ -69,14 +91,7 @@ int main(int argc, char * argv[]) {
   arg_f.array = semInitVal_f;
 
   if(semctl(semid_f, 0, GETALL, arg_f) == -1){
-    ErrExit("semctl failed semid_f");
-  }
-
-  //su F10 scriviamo lo storico delle IPC utilizzate
-  int F10 = open("OutputFiles/F10.csv", O_WRONLY | O_CREAT | O_APPEND, S_IWUSR | S_IRUSR);
-
-  if(F10 == -1){
-    ErrExit("Open F10 failed\n");
+    ErrExit("semctl failed semid_f (RM)");
   }
 
   //segniamo l'ora di creazione della FIFO
@@ -84,11 +99,6 @@ int main(int argc, char * argv[]) {
   strcpy(historical[2].creator, "SM");
   historical[2] = get_time(historical[2], 'c');
 
-  /*
-  if(signal(SIGALRM, sigHandler) == SIG_ERR){
-  ErrExit("changing signal handler failed");
-}
-*/
 //================================================================================
 //dichiarazione e inizializzazione dell'array che conterrà i pid dei processi  R1, R2, R3
 
@@ -238,13 +248,18 @@ if(mqSnd_id == -1){
 //creazione dei semafori per la scrittura di F10
 
 key_t semKey2 = ftok("defines.c", 'D');
-int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+int semid2;
+
+  do{
+    semid2 = semget(semKey2, 2, IPC_CREAT | S_IRUSR | S_IWUSR);
+    //printf("SEMID (RM) 2 %d\n", semid2);
+  }while(semid2 == -1);
 
 if(semid2 == -1){
-  ErrExit("semget failed");
+  ErrExit("semget failed SEMAPHORE_F10 (RM)");
 }
 
-unsigned short semInitVal[1];
+unsigned short semInitVal[2];
 union semun arg;
 arg.array = semInitVal;
 
@@ -252,12 +267,37 @@ if(semctl(semid2, 0, GETALL, arg) == -1){
   ErrExit("semctl failed");
 }
 
+//==================================================================================
+//creazione dei semafori per la sincronizzazione uscita processi
+
+key_t semKeyEND = ftok("shared_memory.c", 'C');
+int semidEND;
+
+do{
+  semidEND = semget(semKeyEND, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+}while(semidEND == -1);
+
+if(semidEND == -1){
+  ErrExit("semget failed");
+}
+
+unsigned short semInitValE[1];
+union semun argE;
+argE.array = semInitValE;
+
+if(semctl(semidEND, 0, GETALL, argE) == -1){
+  ErrExit("semctl failed semidEND");
+}
 
   //==================================================================================
   //creazione dei semafori per sincronizzare chiusura MSQ tra S,R e H
 
   key_t semKeySRH = ftok("defines.c", 'G');
-  int semidSRH = semget(semKeySRH, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semidSRH;
+
+  do{
+    semidSRH = semget(semKeySRH, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  }while(semidSRH == -1);
 
   if(semidSRH == -1){
     ErrExit("semget failed semidSRH (R)");
@@ -270,6 +310,13 @@ if(semctl(semid2, 0, GETALL, arg) == -1){
   if(semctl(semidSRH, 0, GETALL, argSRH) == -1){
     ErrExit("semctl failed semidSRH(R)");
   }
+
+  //=====================APERTURA FIFO=========================//
+  printf("RM BEFORE OPEN FIFO\n");
+  int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
+  printf("RM AFTER OPEN FIFO\n");
+  semOp(semid_f, 0, -1);
+  printf("RM AFTER SEMAPHORE\n");
 
 //===================================================================
 //generazione di R1, R2, R3
@@ -334,12 +381,6 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
     ErrExit("write F4 failed");
   }
 
-  printf("RM BEFORE OPEN FIFO\n");
-  int fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
-  printf("RM AFTER OPEN FIFO\n");
-  semOp(semid_f, 0, 1);
-  printf("RM AFTER SEMAPHORE\n");
-
   ssize_t nBys;
   bool conditions[3] = {false};
 
@@ -390,7 +431,7 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
         }
         internal_msg.mtype = 3;
 
-        internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+        //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
         if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
           ErrExit("message send failed (R3 child)");
         }
@@ -449,7 +490,7 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
           }
 
 
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 3;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -512,7 +553,7 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
             }
           }
 
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 3;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -534,7 +575,9 @@ if (pid == 0 && pid_R[0] == 0 && pid_R[1] == 0 && pid_R[2] > 0) {
     if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
   }else{
-    //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+    strcpy(internal_msg.msgFile.time_departure, "");
+    internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+
     writeFile(internal_msg.msgFile, internal_msg.m_message, F4);	//scrittura messaggio su F3
 
     numWrite = write(pipe3[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
@@ -550,7 +593,9 @@ while(wait(NULL) != -1){
   if(msgrcv(mqid, &internal_msg, internal_mSize, 3, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
 }else{
-  //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+  strcpy(internal_msg.msgFile.time_departure, "");
+  internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+
   writeFile(internal_msg.msgFile, internal_msg.m_message, F4);	//scrittura messaggio su F3
 
   numWrite = write(pipe3[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
@@ -560,17 +605,6 @@ while(wait(NULL) != -1){
   }
 }
 }
-
-//tempo destruction FIFO
-sprintf(historical[2].idKey, "%d", fifo);
-
-remove_fifo("OutputFiles/my_fifo.txt", fifo);
-
-historical[2] = get_time(historical[2], 'd');
-
-semOp(semid2, 0, -1);
-writeF10(historical[2], F10);
-semOp(semid2, 0, 1);
 
 struct msg final_msg = {"-1", "", "", "", "", "", "", ""};
 
@@ -718,7 +752,7 @@ exit(0);
               *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
             }
           }
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 2;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -783,7 +817,7 @@ exit(0);
               *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
             }
           }
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 2;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -800,9 +834,12 @@ exit(0);
       conditions[2] = true;
     }
 
-    if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
+  if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
   }else{
+    strcpy(internal_msg.msgFile.time_departure, "");
+    internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+
     writeFile(internal_msg.msgFile, internal_msg.m_message, F5);	//scrittura messaggio su F3
 
     numWrite = write(pipe4[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
@@ -817,6 +854,9 @@ while(wait(NULL) != -1){
   if(msgrcv(mqid, &internal_msg, internal_mSize, 2, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
 }else{
+  strcpy(internal_msg.msgFile.time_departure, "");
+  internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+
   writeFile(internal_msg.msgFile, internal_msg.m_message, F5);	//scrittura messaggio su F3
 
   numWrite = write(pipe4[1], &internal_msg.m_message, sizeof(internal_msg.m_message));
@@ -911,7 +951,7 @@ exit(0);
               *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
             }
           }
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 1;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -975,7 +1015,7 @@ exit(0);
           }
 
 
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 1;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -1040,7 +1080,7 @@ exit(0);
               *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
             }
           }
-          internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
+          //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);
           internal_msg.mtype = 1;
 
           if(msgsnd(mqid, &internal_msg, internal_mSize ,0) == -1){ //manda il messaggio sulla msgqueue
@@ -1060,7 +1100,9 @@ exit(0);
     if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
   }else{
-    //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+    strcpy(internal_msg.msgFile.time_departure, "");
+    internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+
     writeFile(internal_msg.msgFile, internal_msg.m_message, F6);	//scrittura messaggio su F3
   }
 }
@@ -1069,7 +1111,9 @@ while(wait(NULL) != -1){
   if(msgrcv(mqid, &internal_msg, internal_mSize, 1, IPC_NOWAIT) == -1){ //se non c'è nessun messaggio da leggere allora non facciamo nulla
 
 }else{
-  //internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+  strcpy(internal_msg.msgFile.time_departure, "");
+  internal_msg.msgFile = get_time_departure(internal_msg.msgFile);  // registriamo il tempo di partenza del messaggio
+
   writeFile(internal_msg.msgFile, internal_msg.m_message, F6);	//scrittura messaggio su F3
 }
 }
@@ -1109,6 +1153,7 @@ exit(0);
   if(close(pipe4[1]) == -1){
     ErrExit("close pipe4 write end in father failed");
   }
+
   if(close(pipe4[0]) == -1){
     ErrExit("close pipe4 read end in father failed");
   }
@@ -1135,11 +1180,26 @@ exit(0);
 
   historical[5] = get_time(historical[5], 'd');
 
+  //tempo destruction FIFO
+  sprintf(historical[2].idKey, "%d", fifo);
+
+  remove_fifo("OutputFiles/my_fifo.txt", fifo);
+
+  historical[2] = get_time(historical[2], 'd');
+
   for(int i = 0; i < 6; i++){
     semOp(semid2, 0, -1);
     writeF10(historical[i], F10);
     semOp(semid2, 0, 1);
   }
 
+
+  if(close(F10) == -1){
+    ErrExit("Close F10 failed");
+  }
+
+  semOp(semidEND, 0, -1);
+
+  sigprocmask(SIG_SETMASK, &prevSet, NULL);
 }
 }

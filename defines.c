@@ -60,14 +60,15 @@ struct msg fill_structure(char buffer[]){
       return message;
 }
 
-struct hackler fill_hackler_structure(char buffer[],int j){
+struct hackler fill_hackler_structure(char buffer[]){
 	struct hackler message = { };
 
 	int counter = 0;
 	int index = 0;
+	int j = 0;
 
 		//riempo la struct con i messaggi
-	for(; buffer[j] != '\n'; j++){ //itero stringa per stringa
+	for(; buffer[j] != '\0'; j++){ //itero stringa per stringa
 		if(buffer[j] == ';'){
 			index = 0;
 			counter++;
@@ -87,7 +88,7 @@ struct hackler fill_hackler_structure(char buffer[],int j){
 					message.target[index] = buffer[j];
 					index++;
 				}else{
-					strcpy(message.target, "");
+					strcpy(message.target, "-");
 					counter++;
 				}
 				break;

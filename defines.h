@@ -100,6 +100,6 @@ struct pid get_pidF8(struct pid pid);
 
 struct pid get_pidF9(struct pid pid);
 
-struct hackler fill_hackler_structure(char buffer[],int j);
+struct hackler fill_hackler_structure(char buffer[]);
 
 void printSemaphoresValue (int semid);

@@ -12,9 +12,39 @@
 #include <sys/msg.h>
 #include <fcntl.h>
 
+bool wait_time = true;
 
+void sigHandler(int sig){
+  if(sig == SIGUSR1){
+    sleep(5);
+  }
+
+  if(sig == SIGCONT){
+    wait_time = false;
+  }
+
+}
 
 int main(int argc, char * argv[]) {
+  //=================================================================
+  //impostazione per la gestione dei segnali
+
+  // set of signals (N.B. it is not initialized!)
+  sigset_t mySet, prevSet;
+  // initialize mySet to contain all signals
+  sigfillset(&mySet);
+  // remove SIGINT from mySet
+  sigdelset(&mySet, SIGTERM);
+  sigdelset(&mySet, SIGUSR1);
+  sigdelset(&mySet, SIGCONT);
+  // blocking all signals but SIGTERM, SIGUSR1, SIGCONT
+  sigprocmask(SIG_SETMASK, &mySet, NULL);
+
+  if(signal(SIGUSR1, sigHandler) == SIG_ERR){
+    ErrExit("signal failed");
+  }
+
+  bool *check_time = &wait_time; //modifica il wait_time
 
  //===================================================================
  //creazione msg queue
@@ -32,6 +62,39 @@ int main(int argc, char * argv[]) {
   }
 
   ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
+
+  //==================================================================================
+  //creazione della message queue tra Sender e Hackler
+
+  struct signal sigInc; //MQ per IncreaseDelay
+
+  key_t mqInc_Key = ftok("receiver_manager.c", 'D');
+  int mqInc_id = msgget(mqInc_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqInc_id == -1){
+    ErrExit("internal msgget failed");
+  }
+
+
+  struct signal sigRmv; //MQ per RemoveMSG
+
+
+  key_t mqRmv_Key = ftok("receiver_manager.c", 'E');
+  int mqRmv_id = msgget(mqRmv_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqRmv_id == -1){
+    ErrExit("internal msgget failed");
+  }
+
+  struct signal sigSnd; //MQ per SendMSG
+
+
+  key_t mqSnd_Key = ftok("receiver_manager.c", 'F');
+  int mqSnd_id = msgget(mqSnd_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(mqSnd_id == -1){
+    ErrExit("internal msgget failed");
+  }
 
  //==================================================================
  //creazione shared memory (SH) tra Senders & Receiver
@@ -128,12 +191,6 @@ int main(int argc, char * argv[]) {
   fcntl(pipe2[0], F_SETFL, O_NONBLOCK);
 
 
-  pid_t pid_S[3]; //@param contiene i pid dei processi
-  pid_S[0] = 0;
-  pid_S[1] = 0;
-  pid_S[2] = 0;
-  int process = 0;
-
 
   int F1 = open("OutputFiles/F1.csv", O_RDWR | O_CREAT, S_IRWXU); //creiamo F1.csv con permessi di lettura scrittura
 
@@ -153,6 +210,8 @@ int main(int argc, char * argv[]) {
     ErrExit("open F3 failed");
   }
 
+  pid_t pid_S[3] = {0, 0, 0}; //@param contiene i pid dei processi
+  int process = 0;
 
   //intestazione dei file F1, F2, F3
   const char heading[] = "Id;Message;IDSender;IDReceiver;TimeArrival;TimeDeparture\n";
@@ -192,6 +251,8 @@ int main(int argc, char * argv[]) {
 
 
   if(process == 1){
+
+
     //dichiarazione variabili di S1;
     ssize_t numRead;
     ssize_t numWrite;
@@ -251,11 +312,37 @@ int main(int argc, char * argv[]) {
           if (pid == -1) {
             ErrExit("Fork failed! Child of S1 not created");
           }
+
+          if(pid > 0){
+            //mandare il pid sulla MQ e cambio mtype
+            sigInc.pid = pid;
+            sigInc.mtype = 1;
+
+            if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S1 - INC)");
+            }
+
+            sigRmv.pid = pid;
+            sigRmv.mtype = 1;
+
+            if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S1 - RMV)");
+            }
+
+            sigSnd.pid = pid;
+            sigSnd.mtype = 1;
+
+            if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S1 - SND)");
+            }
+          }
           if (pid == 0) {
+
             int sec;
 
-            if ((sec = sleep(atoi(message.delS1))) > 0) {
+            if ((sec = sleep(atoi(message.delS1))) > 0 && wait_time == true) {
               sleep(sec);
+              *check_time = false;
             }
 
             msgFile = get_time_departure(msgFile);
@@ -355,11 +442,36 @@ int main(int argc, char * argv[]) {
           if (pid == -1) {
             ErrExit("Fork failed! Child of S2 not created");
           }
+          if(pid > 0){
+            //mandare il pid sulla MQ e cambio mtype
+            sigInc.pid = pid;
+            sigInc.mtype = 2;
+
+            if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S2 - INC)");
+            }
+
+            sigRmv.pid = pid;
+            sigRmv.mtype = 2;
+
+            if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S2 - RMV)");
+            }
+
+            sigSnd.pid = pid;
+            sigSnd.mtype = 2;
+
+            if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S2 - SND)");
+            }
+          }
+
           if (pid == 0) {
             int sec;
 
-            if ((sec = sleep(atoi(message.delS2))) > 0) {
+            if ((sec = sleep(atoi(message.delS2))) > 0 && wait_time == true) {
               sleep(sec);
+              *check_time = false;
             }
 
             msgFile = get_time_departure(msgFile);
@@ -459,11 +571,35 @@ int main(int argc, char * argv[]) {
           if (pid == -1) {
             ErrExit("Fork failed! Child of S2 not created");
           }
+          if(pid > 0){
+            //mandare il pid sulla MQ e cambio mtype
+            sigInc.pid = pid;
+            sigInc.mtype = 3;
+
+            if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S3 - INC)");
+            }
+
+            sigRmv.pid = pid;
+            sigRmv.mtype = 3;
+
+            if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S3 - RMV)");
+            }
+
+            sigSnd.pid = pid;
+            sigSnd.mtype = 3;
+
+            if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
+              ErrExit("Sending pid to Hackler failed (S3 - SND)");
+            }
+          }
           if (pid == 0) {
             int sec;
 
-            if ((sec = sleep(atoi(message.delS3))) > 0) {
+            if ((sec = sleep(atoi(message.delS3))) > 0 && wait_time == true) {
               sleep(sec);
+              *check_time = false;
             }
 
             msgFile = get_time_departure(msgFile);
@@ -572,6 +708,18 @@ int main(int argc, char * argv[]) {
     ErrExit("msgctl failed");
   }
 
+  if(msgctl(mqInc_id, 0, IPC_RMID) == -1){
+    ErrExit("msgctl failed");
+  }
+
+  if(msgctl(mqRmv_id, 0, IPC_RMID) == -1){
+    ErrExit("msgctl failed");
+  }
+
+  if(msgctl(mqSnd_id, 0, IPC_RMID) == -1){
+    ErrExit("msgctl failed");
+  }
+
   if(semctl(semid, 0, IPC_RMID) == -1){
     ErrExit("semctl failed");
   }
@@ -590,6 +738,8 @@ int main(int argc, char * argv[]) {
   }
 
   remove_fifo("OutputFiles/my_fifo.txt", fifo);
+
+  sigprocmask(SIG_SETMASK, &prevSet, NULL);
 
   return 0;
 }

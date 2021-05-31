@@ -5,15 +5,16 @@
 #include "defines.h"
 
 // funzione per riempire la struct con i relativi campi in F0
-struct msg fill_structure(char buffer[], int j){
+struct msg fill_structure(char buffer[]){
 
-		struct msg message = {"", "", "", "", "", "", "", ""};
+		struct msg message = {};
 
 		int counter = 0;
 		int index = 0;
+		int j = 0;
 
 			//riempo la struct con i messaggi
-		for(; buffer[j] != '\n'; j++){ //itero stringa per stringa
+		for(; buffer[j] != '\0'; j++){ //itero stringa per stringa
 			if(buffer[j] == ';'){
 				index = 0;
 				counter++;
@@ -29,12 +30,12 @@ struct msg fill_structure(char buffer[], int j){
 					index++;
 					break;
 				case 2: // idSender
-					message.idSender[index] = buffer[j];
-					index++;
+				  message.idSender[index] = buffer[j];
+				  index++;
 					break;
 				case 3: // idReceiver
-					message.idReceiver[index] = buffer[j];
-					index++;
+				  message.idReceiver[index] = buffer[j];
+				  index++;
 					break;
 				case 4: // DelS1
 					message.delS1[index] = buffer[j];
@@ -101,7 +102,8 @@ struct hackler fill_hackler_structure(char buffer[],int j){
 		return message;
 }
 
-struct container get_time_arrival(struct container msgFile){
+struct container get_time_arrival(){
+  struct container msgFile = {};
 
   time_t now = time(NULL);
   struct tm *tm_struct = localtime(&now);
@@ -518,3 +520,20 @@ struct pid get_pidF9(struct pid pid){
 
 	return pid;
 }
+
+void printSemaphoresValue (int semid) {
+  unsigned short semVal[1];
+  union semun arg;
+  arg.array = semVal;
+
+  // get the current state of the set
+  if (semctl(semid, 0 /*ignored*/, GETALL, arg) == -1)
+    ErrExit("semctl GETALL failed");
+
+  // print the semaphore's value
+  printf("semaphore set state:\n");
+
+  printf("id: %d --> %d\n", 0, semVal[0]);
+}
+
+

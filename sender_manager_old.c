@@ -415,7 +415,7 @@ int main(int argc, char * argv[]) {
     ssize_t mSize = sizeof(struct mymsg) - sizeof(long);  //per la msgqueue tra Senders e Receivers
 
     //inizializiamo i campi della struttura in modo da essere sicuri che siano vuoti
-    struct msg message = {"", "", "", "", "", "", "", ""};
+    struct msg message = {};
 
     while((numRead = read(F0, &buffer[i], sizeof(char))) > 0 && buffer[i] != '\0'){ //while che legge carattere per carattere da F0.csv
 

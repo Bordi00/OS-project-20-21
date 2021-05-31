@@ -6,5 +6,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-void create_fifo(const char *pathname, int flags);
+
+
 void remove_fifo(const char *pathname, int fd);

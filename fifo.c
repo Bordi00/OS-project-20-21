@@ -6,6 +6,7 @@
 #include "fifo.h"
 
 
+
 void create_fifo(const char *pathname, int flags){
 	if(mkfifo(pathname, flags) == -1)
 		ErrExit("create fifo failed");

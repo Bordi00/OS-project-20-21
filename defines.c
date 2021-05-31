@@ -190,6 +190,7 @@ struct ipc get_time(struct ipc historical, char flag){
 void writeFile(struct container msgFile, struct msg message, int fd){
 
   ssize_t numWrite;
+  char result[100] = "";
 
   strcpy(msgFile.id, message.id);
 	strcpy(msgFile.message, message.message);
@@ -197,6 +198,25 @@ void writeFile(struct container msgFile, struct msg message, int fd){
 	msgFile.idSender[0] = message.idSender[1];
 	msgFile.idReceiver[0] = message.idReceiver[1];
 
+  strcat(result, msgFile.id);
+  strcat(result, ";");
+  strcat(result, msgFile.message);
+  strcat(result, ";");
+  strcat(result, msgFile.idSender);
+  strcat(result, ";");
+  strcat(result, msgFile.idReceiver);
+  strcat(result, ";");
+  strcat(result, msgFile.time_arrival);
+  strcat(result, ";");
+  strcat(result, msgFile.time_departure);
+  strcat(result, "\n\0");
+
+  numWrite = write(fd, result, strlen(result));
+
+  if (numWrite != strlen(result)) {
+    ErrExit("write file");
+  }
+/*
   numWrite = write(fd, msgFile.id, strlen(msgFile.id));
   	if (numWrite != strlen(msgFile.id))
   		ErrExit("write id");
@@ -244,7 +264,7 @@ void writeFile(struct container msgFile, struct msg message, int fd){
       numWrite = write(fd, "\n", sizeof(char));
         if (numWrite != sizeof(char))
           ErrExit("write");
-
+*/
 				//printf("message arrived %s , td %s\n", message.message, msgFile.time_departure);
 }
 
@@ -374,8 +394,28 @@ void writeF9(int pid_R[3]){
 
 void writeF10(struct ipc historical, int F10){
 	ssize_t numWrite;
+	char result[100] = "";
 
-	numWrite = write(F10, historical.ipc, strlen(historical.ipc));
+	strcat(result, historical.ipc);
+  strcat(result, ";");
+  strcat(result, historical.idKey);
+  strcat(result, ";");
+  strcat(result, historical.creator);
+  strcat(result, ";");
+  strcat(result, historical.creation);
+  strcat(result, ";");
+  strcat(result, historical.destruction);
+  strcat(result, "\n\0");
+
+  printf("result: %s\n", result);
+
+  numWrite = write(F10, result, strlen(result));
+
+  if (numWrite != strlen(result)) {
+    ErrExit("write file F10");
+  }
+/*
+  numWrite = write(F10, historical.ipc, strlen(historical.ipc));
 	if (numWrite != strlen(historical.ipc)){
 		ErrExit("write ipc");
 	}
@@ -424,7 +464,7 @@ void writeF10(struct ipc historical, int F10){
 	if (numWrite != sizeof(char)){
 		ErrExit("write");
 	}
-
+*/
 }
 
 struct container init_container(struct container msgFile){
@@ -455,12 +495,14 @@ struct msg init_msg(struct msg message){
 struct pid get_pidF8(struct pid pid){
 
 	int F8;
-	char bufferF8[50];
+	char bufferF8[100];
 	char pidF8[5];
+	ssize_t nBys;
 
 	F8 = open("OutputFiles/F8.csv", O_RDONLY, S_IRUSR);
-	read(F8, &bufferF8, sizeof(bufferF8));
+	nBys = read(F8, &bufferF8, sizeof(bufferF8));
 
+  bufferF8[nBys] = '\0';
 
 	int indexF8;
 	int i = 0;
@@ -490,12 +532,14 @@ struct pid get_pidF8(struct pid pid){
 struct pid get_pidF9(struct pid pid){
 
 	int F9;
-	char bufferF9[50];
+	char bufferF9[100];
 	char pidF9[5];
+  ssize_t nBys;
 
 	F9 = open("OutputFiles/F9.csv", O_RDONLY, S_IRUSR);
 
-	read(F9, &bufferF9, sizeof(bufferF9));
+	nBys = read(F9, &bufferF9, sizeof(bufferF9));
+	bufferF9[nBys] = '\0';
 
 	int indexF9;
 	int i = 0;

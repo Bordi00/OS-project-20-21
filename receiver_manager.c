@@ -846,10 +846,7 @@ int main(int argc, char * argv[]) {
        printf("R3 %d exited, status = %d\n", pid, WEXITSTATUS(status));
      }
    }
-
-   if(close(fifo) == -1){
-     ErrExit("close fifo failed");
-   }
+   
 
    if(close(pipe3[0]) == -1){
      ErrExit("Close pipe3 write-end failed");
@@ -870,6 +867,12 @@ int main(int argc, char * argv[]) {
    if(close(F6) == -1){
      ErrExit("Close F6 failed");
    }
+
+   if(close(fifo) == -1){
+     ErrExit("Close fifo failed by reciver");
+   }
+
+   remove_fifo("OutputFiles/my_fifo.txt", fifo);
 
    sigprocmask(SIG_SETMASK, &prevSet, NULL);
  }

@@ -26,6 +26,8 @@ void sigHandler(int sig){
 }
 
 int main(int argc, char * argv[]) {
+
+  struct ipc historical[10] = {};
   //=================================================================
   //impostazione per la gestione dei segnali
 
@@ -37,6 +39,7 @@ int main(int argc, char * argv[]) {
   sigdelset(&mySet, SIGTERM);
   sigdelset(&mySet, SIGUSR1);
   sigdelset(&mySet, SIGCONT);
+
   // blocking all signals but SIGTERM, SIGUSR1, SIGCONT
   sigprocmask(SIG_SETMASK, &mySet, NULL);
 
@@ -63,6 +66,11 @@ int main(int argc, char * argv[]) {
 
   ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
 
+  sprintf(historical[0].idKey, "%x", msgKey);
+  strcpy(historical[0].ipc, "Q");
+  strcpy(historical[0].creator, "SM");
+  historical[0] = get_time(historical[0], 'c');
+
   //==================================================================================
   //creazione della message queue tra Sender e Hackler
 
@@ -75,6 +83,10 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+  sprintf(historical[1].idKey, "%x", mqInc_Key);
+  strcpy(historical[1].ipc, "Q-INC");
+  strcpy(historical[1].creator, "SM");
+  historical[1] = get_time(historical[1], 'c');
 
   struct signal sigRmv; //MQ per RemoveMSG
 
@@ -86,6 +98,12 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+  sprintf(historical[2].idKey, "%x", mqRmv_Key);
+  strcpy(historical[2].ipc, "Q-RMV");
+  strcpy(historical[2].creator, "SM");
+  historical[2] = get_time(historical[2], 'c');
+
+
   struct signal sigSnd; //MQ per SendMSG
 
 
@@ -96,6 +114,11 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+  sprintf(historical[3].idKey, "%x", mqSnd_Key);
+  strcpy(historical[3].ipc, "Q-SND");
+  strcpy(historical[3].creator, "SM");
+  historical[3] = get_time(historical[3], 'c');
+
  //==================================================================
  //creazione shared memory (SH) tra Senders & Receiver
 
@@ -103,6 +126,11 @@ int main(int argc, char * argv[]) {
   int shmid;
   shmid = alloc_shared_memory(shmKey, sizeof(struct message));
   struct message *messageSH = (struct message *)get_shared_memory(shmid, 0);
+
+  sprintf(historical[4].idKey, "%x", shmKey);
+  strcpy(historical[4].ipc, "SH");
+  strcpy(historical[4].creator, "SM");
+  historical[4] = get_time(historical[4], 'c');
 
   //==================================================================
   //creazione shared memory per la condivisione del puntatore
@@ -114,6 +142,11 @@ int main(int argc, char * argv[]) {
   struct address *address = (struct address *)get_shared_memory(shmid2, 0);
 
   address->ptr = messageSH;
+
+  sprintf(historical[5].idKey, "%x", shmKey2);
+  strcpy(historical[5].ipc, "SH2");
+  strcpy(historical[5].creator, "SM");
+  historical[5] = get_time(historical[5], 'c');
 
   //==================================================================================
   //creazione del semaforo per la scrittura sulla SH
@@ -133,6 +166,11 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
+  sprintf(historical[6].idKey, "%x", semKey);
+  strcpy(historical[6].ipc, "SEM");
+  strcpy(historical[6].creator, "SM");
+  historical[6] = get_time(historical[6], 'c');
+
   //=================================================================================
   //creazione del semaforo che permetterà di scrivere i file F8 e F9 prima di essere letti
 
@@ -151,23 +189,11 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
-  //==================================================================================
-  //creazione semaforo apertura della fifo
+  sprintf(historical[7].idKey, "%x", semKey2);
+  strcpy(historical[7].ipc, "SEM2");
+  strcpy(historical[7].creator, "SM");
+  historical[7] = get_time(historical[7], 'c');
 
-  key_t semKey3 = ftok("receiver_manager.c", 'C');
-  int semid3 = semget(semKey3, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
-
-  if(semid3 == -1){
-    ErrExit("semget failed");
-  }
-
-  unsigned short semInitVal3[] = {1};
-  union semun arg3;
-  arg3.array = semInitVal3;
-
-  if(semctl(semid3, 0, SETALL, arg3) == -1){
-    ErrExit("semctl failed (semid3)");
-  }
 
   //=================================================================================
   //creazione fifo
@@ -183,12 +209,34 @@ int main(int argc, char * argv[]) {
 
   int pipe1[2];
   int pipe2[2];
+  char pipe_1[5];
+  char pipe_2[5];
+
 
   create_pipe(pipe1);
   create_pipe(pipe2);
 
   fcntl(pipe1[0], F_SETFL, O_NONBLOCK);
   fcntl(pipe2[0], F_SETFL, O_NONBLOCK);
+  strcpy(historical[8].ipc, "PIPE1");
+  strcpy(historical[9].ipc, "PIPE2");
+  strcpy(historical[8].creator, "SM");
+  strcpy(historical[9].creator, "SM");
+
+  sprintf(pipe_1, "%d", pipe1[0]);
+  strcpy(historical[8].idKey, pipe_1);
+  sprintf(pipe_1, "%d", pipe1[1]);
+  strcat(historical[8].idKey, "/");
+  strcat(historical[8].idKey, pipe_1);
+
+  sprintf(pipe_2, "%d", pipe2[0]);
+  strcpy(historical[9].idKey, pipe_2);
+  sprintf(pipe_2, "%d", pipe2[1]);
+  strcat(historical[9].idKey, "/");
+  strcat(historical[9].idKey, pipe_2);
+
+  historical[8] = get_time(historical[0], 'c');
+  historical[9] = get_time(historical[1], 'c');
 
 
 
@@ -208,6 +256,12 @@ int main(int argc, char * argv[]) {
 
   if(F3 == -1){
     ErrExit("open F3 failed");
+  }
+
+  int F10 = open("OutputFiles/F10.csv", O_RDWR | O_CREAT, S_IRWXU);
+
+  if(F10 == -1){
+    ErrExit("open F10 failed");
   }
 
   pid_t pid_S[3] = {0, 0, 0}; //@param contiene i pid dei processi
@@ -262,6 +316,7 @@ int main(int argc, char * argv[]) {
     char tmp;
     int i = 0;
 
+
     if(close(pipe1[0]) == -1){
       ErrExit("Close pipe1 read-end failed");
     }
@@ -291,21 +346,12 @@ int main(int argc, char * argv[]) {
         if (tmp != '\n') {
           buffer[i] = tmp;
           i++;
-        } else {
+        } else{
           buffer[i] = '\0';
 
           i = 0;
           msgFile = get_time_arrival();
           message = fill_structure(buffer);
-          /*
-            printf("id %s\n", message.id);
-            printf("message %s\n", message.message);
-            printf("idSender %s\n", message.idSender);
-            printf("idReceiver %s\n", message.idReceiver);
-            printf("delS1 %s\n", message.delS1);
-            printf("delS2 %s\n", message.delS2);
-            printf("delS3 %s\n", message.delS3);
-          */
 
           pid = fork();
 
@@ -399,7 +445,6 @@ int main(int argc, char * argv[]) {
 
             exit(0);
           }
-
         }
       }
     }
@@ -545,7 +590,6 @@ int main(int argc, char * argv[]) {
 
     ssize_t numRead;
     ssize_t numWrite;
-    ssize_t nBys;
     struct container msgFile = {};
     struct msg message;
 
@@ -675,22 +719,6 @@ int main(int argc, char * argv[]) {
 
   }
 
-  if(close(pipe1[0]) == -1){
-    ErrExit("Close pipe1 read-end failed");
-  }
-
-  if(close(pipe1[1]) == -1){
-    ErrExit("Close pipe1 write-end failed");
-  }
-
-  if(close(pipe2[0]) == -1){
-    ErrExit("Close pipe2 read-end failed");
-  }
-
-  if(close(pipe2[1]) == -1){
-    ErrExit("Close pipe2 write-end failed");
-  }
-
   if(close(F1) == -1){
     ErrExit("Close F1 failed");
   }
@@ -703,41 +731,70 @@ int main(int argc, char * argv[]) {
     ErrExit("Close F3 failed");
   }
 
-
-  if(msgctl(msqid, 0, IPC_RMID) == -1){
-    ErrExit("msgctl failed");
-  }
-
-  if(msgctl(mqInc_id, 0, IPC_RMID) == -1){
-    ErrExit("msgctl failed");
-  }
-
-  if(msgctl(mqRmv_id, 0, IPC_RMID) == -1){
-    ErrExit("msgctl failed");
-  }
-
-  if(msgctl(mqSnd_id, 0, IPC_RMID) == -1){
-    ErrExit("msgctl failed");
-  }
-
-  if(semctl(semid, 0, IPC_RMID) == -1){
-    ErrExit("semctl failed");
-  }
-
-  if(semctl(semid2, 0, IPC_RMID) == -1){
-    ErrExit("semctl failed");
-  }
-
-  free_shared_memory(messageSH);
-  free_shared_memory(address);
-  remove_shared_memory(shmid);
-  remove_shared_memory(shmid2);
-
   if(close(fifo) == -1){
     ErrExit("Close fifo failed by sender");
   }
 
-  remove_fifo("OutputFiles/my_fifo.txt", fifo);
+  historical[0] = get_time(historical[0], 'd');
+  if(msgctl(msqid, 0, IPC_RMID) == -1){
+    ErrExit("msgctl failed");
+  }
+
+  historical[1] = get_time(historical[1], 'd');
+  if(msgctl(mqInc_id, 0, IPC_RMID) == -1){
+    ErrExit("msgctl failed");
+  }
+
+  historical[2] = get_time(historical[2], 'd');
+  if(msgctl(mqRmv_id, 0, IPC_RMID) == -1){
+    ErrExit("msgctl failed");
+  }
+
+  historical[3] = get_time(historical[3], 'd');
+  if(msgctl(mqSnd_id, 0, IPC_RMID) == -1){
+    ErrExit("msgctl failed");
+  }
+
+  historical[4] = get_time(historical[4], 'd');
+  free_shared_memory(messageSH);
+  remove_shared_memory(shmid);
+
+  historical[5] = get_time(historical[5], 'd');
+  free_shared_memory(address);
+  remove_shared_memory(shmid2);
+
+  historical[6] = get_time(historical[6], 'd');
+  if(semctl(semid, 0, IPC_RMID) == -1){
+    ErrExit("semctl failed");
+  }
+
+  historical[7] = get_time(historical[7], 'd');
+  if(semctl(semid2, 0, IPC_RMID) == -1){
+    ErrExit("semctl failed");
+  }
+
+  historical[8] = get_time(historical[8], 'd');
+  if(close(pipe1[0]) == -1){
+    ErrExit("Close pipe1 read-end failed");
+  }
+
+  if(close(pipe1[1]) == -1){
+    ErrExit("Close pipe1 write-end failed");
+  }
+
+  historical[9] = get_time(historical[9], 'd');
+  if(close(pipe2[0]) == -1){
+    ErrExit("Close pipe2 read-end failed");
+  }
+
+  if(close(pipe2[1]) == -1){
+    ErrExit("Close pipe2 write-end failed");
+  }
+
+  for(int i = 0; i < 10; i++){
+    writeF10(historical[i], F10);
+  }
+
 
   sigprocmask(SIG_SETMASK, &prevSet, NULL);
 

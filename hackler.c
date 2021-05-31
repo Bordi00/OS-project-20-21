@@ -260,13 +260,28 @@ int main(int argc, char * argv[]) {
           }else{  //SHUTDOWN
             printf("Shutdown\n");
 
-            kill(pids.pid_S[0],SIGTERM);
-            kill(pids.pid_S[1],SIGTERM);
-            kill(pids.pid_S[2],SIGTERM);
+            if(kill(pids.pid_S[0],SIGTERM) == -1){
+              ErrExit("Send SIGTERM to S1 failed");
+            }
 
-            kill(pids.pid_R[0],SIGTERM);
-            kill(pids.pid_R[1],SIGTERM);
-            kill(pids.pid_R[2],SIGTERM);
+            if(kill(pids.pid_S[1],SIGTERM) == -1){
+              ErrExit("Send SIGTERM to S2 failed");
+            }
+            if(kill(pids.pid_S[2],SIGTERM) == -1){
+              ErrExit("Send SIGTERM to S3 failed");
+            }
+
+            if(kill(pids.pid_R[0],SIGTERM) == -1){
+              ErrExit("Send SIGTERM to R1 failed");
+            }
+
+            if(kill(pids.pid_R[1],SIGTERM) == -1){
+              ErrExit("Send SIGTERM to R2 failed");
+            }
+
+            if(kill(pids.pid_R[2],SIGTERM) == -1){
+              ErrExit("Send SIGTERM to R3 failed");
+            }
 
           }
 

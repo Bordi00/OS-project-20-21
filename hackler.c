@@ -13,13 +13,33 @@
 
 int main(int argc, char * argv[]) {
 
+  //=================================================================================
+  //creazione del semaforo che permetterà di scrivere i file F8 e F9 prima di essere letti
+
+  key_t semKey1 = ftok("receiver_manager.c", 'G');
+  int semid1 = semget(semKey1, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid1 == -1){
+    ErrExit("semget failed SEMAPHORE 1 (SM)");
+  }
+
+  unsigned short semInitVal1[1];
+  union semun arg1;
+  arg1.array = semInitVal1;
+
+  if(semctl(semid1, 0, GETALL, arg1) == -1){
+    ErrExit("semctl failed");
+  }
+
+  semOp(semid1, 0, -1);
+
   //==================================================================================
   //creazione della message queue tra Sender e Hackler
 
   struct signal sigInc; //MQ per IncreaseDelay
 
   key_t mqInc_Key = ftok("receiver_manager.c", 'D');
-  int mqInc_id = msgget(mqInc_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int mqInc_id = msgget(mqInc_Key, S_IRUSR | S_IWUSR);
 
   if(mqInc_id == -1){
     ErrExit("internal msgget failed");
@@ -30,7 +50,7 @@ int main(int argc, char * argv[]) {
 
 
   key_t mqRmv_Key = ftok("receiver_manager.c", 'E');
-  int mqRmv_id = msgget(mqRmv_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int mqRmv_id = msgget(mqRmv_Key, S_IRUSR | S_IWUSR);
 
   if(mqRmv_id == -1){
     ErrExit("internal msgget failed");
@@ -40,7 +60,7 @@ int main(int argc, char * argv[]) {
 
 
   key_t mqSnd_Key = ftok("receiver_manager.c", 'F');
-  int mqSnd_id = msgget(mqSnd_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int mqSnd_id = msgget(mqSnd_Key,  S_IRUSR | S_IWUSR);
 
   if(mqSnd_id == -1){
     ErrExit("internal msgget failed");
@@ -51,7 +71,7 @@ int main(int argc, char * argv[]) {
   //creazione del semaforo che permetterà di scrivere i file F8 e F9 prima di essere letti
 
   key_t semKey2 = ftok("receiver_manager.c", 'B');
-  int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semid2 = semget(semKey2, 1, S_IRUSR | S_IWUSR);
 
   if(semid2 == -1){
     ErrExit("semget failed SEMAPHORE 2 (SM)");

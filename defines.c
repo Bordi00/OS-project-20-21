@@ -216,56 +216,7 @@ void writeFile(struct container msgFile, struct msg message, int fd){
   if (numWrite != strlen(result)) {
     ErrExit("write file");
   }
-/*
-  numWrite = write(fd, msgFile.id, strlen(msgFile.id));
-  	if (numWrite != strlen(msgFile.id))
-  		ErrExit("write id");
 
-      numWrite = write(fd, ";", sizeof(char));
-      if (numWrite != sizeof(char))
-        ErrExit("write");
-
-      numWrite = write(fd, msgFile.message, strlen(msgFile.message));
-      if (numWrite != strlen(msgFile.message))
-        ErrExit("write message");
-
-			numWrite = write(fd, ";", sizeof(char));
-      if (numWrite != sizeof(char))
-        ErrExit("write");
-
-      numWrite = write(fd, msgFile.idSender, strlen(msgFile.idSender));
-      if (numWrite != strlen(msgFile.idSender))
-        ErrExit("write idSender");
-
-			numWrite = write(fd, ";", sizeof(char));
-      if (numWrite != sizeof(char))
-        ErrExit("write");
-
-      numWrite = write(fd, msgFile.idReceiver, strlen(msgFile.idReceiver));
-      if (numWrite != strlen(msgFile.idReceiver))
-        ErrExit("write idReceiver");
-
-			numWrite = write(fd, ";", sizeof(char));
-      if (numWrite != sizeof(char))
-        ErrExit("write");
-
-			numWrite = write(fd, msgFile.time_arrival, strlen(msgFile.time_arrival));
-      if (numWrite != strlen(msgFile.time_arrival))
-        ErrExit("write time_arrival");
-
-			numWrite = write(fd, ";", sizeof(char));
-      if (numWrite != sizeof(char))
-        ErrExit("write");
-
-			numWrite = write(fd, msgFile.time_departure, strlen(msgFile.time_departure));
-      if (numWrite != strlen(msgFile.time_departure))
-        ErrExit("write time_departure");
-
-      numWrite = write(fd, "\n", sizeof(char));
-        if (numWrite != sizeof(char))
-          ErrExit("write");
-*/
-				//printf("message arrived %s , td %s\n", message.message, msgFile.time_departure);
 }
 
 void writeF8(int pid_S[3]){
@@ -412,57 +363,7 @@ void writeF10(struct ipc historical, int F10){
   if (numWrite != strlen(result)) {
     ErrExit("write file F10");
   }
-/*
-  numWrite = write(F10, historical.ipc, strlen(historical.ipc));
-	if (numWrite != strlen(historical.ipc)){
-		ErrExit("write ipc");
-	}
 
-	numWrite = write(F10, ";", sizeof(char));
-	if (numWrite != sizeof(char)){
-		ErrExit("write");
-	}
-
-	numWrite = write(F10, historical.idKey, strlen(historical.idKey));
-	if (numWrite != strlen(historical.idKey)){
-		ErrExit("write key");
-	}
-
-	numWrite = write(F10, ";", sizeof(char));
-	if (numWrite != sizeof(char)){
-		ErrExit("write");
-	}
-
-	numWrite = write(F10, historical.creator, strlen(historical.creator));
-	if (numWrite != strlen(historical.creator)){
-		ErrExit("write creator");
-	}
-
-	numWrite = write(F10, ";", sizeof(char));
-	if (numWrite != sizeof(char)){
-		ErrExit("write");
-	}
-
-	numWrite = write(F10, historical.creation, strlen(historical.creation));
-	if (numWrite != strlen(historical.creation)){
-		ErrExit("write creation");
-	}
-
-	numWrite = write(F10, ";", sizeof(char));
-	if (numWrite != sizeof(char)){
-		ErrExit("write");
-	}
-
-	numWrite = write(F10, historical.destruction, strlen(historical.destruction));
-	if (numWrite != strlen(historical.destruction)){
-		ErrExit("write destruction");
-	}
-
-	numWrite = write(F10, "\n", sizeof(char));
-	if (numWrite != sizeof(char)){
-		ErrExit("write");
-	}
-*/
 }
 
 struct container init_container(struct container msgFile){

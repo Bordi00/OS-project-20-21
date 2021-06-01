@@ -1,10 +1,10 @@
 ID;Message;IDSender;IDReceiver;DelS1;DelS2;DelS3;Type
-1;Ciao;S1;R3;2;-;-;Q
+1;Ciao;S1;R3;2;3;4;FIFO
 2;Come va?;S3;R1;1;1;1;PIPE
-3;MyMsg;S2;R2;3;2;-;SH
-4;OurMsg;S3;R3;2;3;2;SH
+3;MyMsg;S2;R2;3;2;5;FIFO
+4;OurMsg;S3;R3;2;3;2;FIFO
 5;Amico;S3;R2;2;4;1;FIFO
-6;Tempo;S3;R2;5;4;7;Q
+6;Tempo;S3;R2;5;4;7;FIFO
 7;Oggi;S3;R3;3;2;2;FIFO
-8;Arrivederci;S1;R1;2;-;-;SH
-9;Fine;S2;R1;4;2;-;Q
+8;Arrivederci;S1;R1;2;7;3;FIFO
+9;Fine;S2;R1;4;2;5;FIFO

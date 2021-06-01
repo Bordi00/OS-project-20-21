@@ -26,6 +26,26 @@ void sigHandler(int sig){
 }
 
 int main(int argc, char * argv[]) {
+
+  //=================================================================================
+  //creazione del semaforo che permetterà di scrivere i file F8 e F9 prima di essere letti
+
+  key_t semKey1 = ftok("receiver_manager.c", 'G');
+  int semid1 = semget(semKey1, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid1 == -1){
+    ErrExit("semget failed SEMAPHORE 1 (SM)");
+  }
+
+  unsigned short semInitVal1[1];
+  union semun arg1;
+  arg1.array = semInitVal1;
+
+  if(semctl(semid1, 0, GETALL, arg1) == -1){
+    ErrExit("semctl failed");
+  }
+
+  semOp(semid1, 0, -1);
   //=================================================================
   //impostazione per la gestione dei segnali
 
@@ -58,7 +78,7 @@ int main(int argc, char * argv[]) {
   //creazione del semaforo che permetterà di scrivere i file F8 e F9 prima di essere letti
 
   key_t semKey2 = ftok("receiver_manager.c", 'B');
-  int semid2 = semget(semKey2, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semid2 = semget(semKey2, 1, S_IRUSR | S_IWUSR);
 
   if(semid2 == -1){
     ErrExit("semget failed SEMAPHORE 2 (SM)");
@@ -76,7 +96,7 @@ int main(int argc, char * argv[]) {
   //creazione semaforo apertura della fifo
 
   key_t semKey3 = ftok("receiver_manager.c", 'C');
-  int semid3 = semget(semKey3, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int semid3 = semget(semKey3, 1,  S_IRUSR | S_IWUSR);
 
   if(semid3 == -1){
     ErrExit("semget failed");
@@ -92,15 +112,8 @@ int main(int argc, char * argv[]) {
 
   //===============================================================
   //collegamento alla fifo in lettura
-
-  int check;
   int fifo;
 
-  unlink("OutputFiles/my_fifo.txt");
-
-  if((check = mkfifo("OutputFiles/my_fifo.txt", S_IRUSR | S_IWUSR)) == -1){
-    ErrExit("create fifo failed");
-  }
   fifo = open("OutputFiles/my_fifo.txt", O_RDONLY | O_NONBLOCK);
 
   if(fifo == -1){
@@ -117,7 +130,7 @@ int main(int argc, char * argv[]) {
 
 
   key_t msgKey = 01110001;
-  int msqid = msgget(msgKey, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int msqid = msgget(msgKey,  S_IRUSR | S_IWUSR);
 
   if (msqid == -1) {
     ErrExit("msgget failed");
@@ -131,7 +144,7 @@ int main(int argc, char * argv[]) {
   struct signal sigInc; //MQ per IncreaseDelay
 
   key_t mqInc_Key = ftok("receiver_manager.c", 'D');
-  int mqInc_id = msgget(mqInc_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int mqInc_id = msgget(mqInc_Key, S_IRUSR | S_IWUSR);
 
   if(mqInc_id == -1){
     ErrExit("internal msgget failed");
@@ -142,7 +155,7 @@ int main(int argc, char * argv[]) {
 
 
   key_t mqRmv_Key = ftok("receiver_manager.c", 'E');
-  int mqRmv_id = msgget(mqRmv_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int mqRmv_id = msgget(mqRmv_Key,  S_IRUSR | S_IWUSR);
 
   if(mqRmv_id == -1){
     ErrExit("internal msgget failed");
@@ -152,7 +165,7 @@ int main(int argc, char * argv[]) {
 
 
   key_t mqSnd_Key = ftok("receiver_manager.c", 'F');
-  int mqSnd_id = msgget(mqSnd_Key, IPC_CREAT | S_IRUSR | S_IWUSR);
+  int mqSnd_id = msgget(mqSnd_Key,  S_IRUSR | S_IWUSR);
 
   if(mqSnd_id == -1){
     ErrExit("internal msgget failed");
@@ -163,8 +176,12 @@ int main(int argc, char * argv[]) {
   //=================================================================================
   //creazione pipe e allocazione delle variabili necessarie
 
+  struct ipc historical[2] = {};
+
   int pipe3[2];
   int pipe4[2];
+  char pipe_1[5] = "";
+  char pipe_2[5] = "";
 
   create_pipe(pipe3);
   create_pipe(pipe4);
@@ -172,8 +189,29 @@ int main(int argc, char * argv[]) {
   fcntl(pipe3[0], F_SETFL, O_NONBLOCK);
   fcntl(pipe4[0], F_SETFL, O_NONBLOCK);
 
+  strcpy(historical[0].ipc, "PIPE3");
+  strcpy(historical[1].ipc, "PIPE4");
+  strcpy(historical[0].creator, "RM");
+  strcpy(historical[1].creator, "RM");
+
+  sprintf(pipe_1, "%d", pipe3[0]);
+  strcpy(historical[0].idKey, pipe_1);
+  sprintf(pipe_1, "%d", pipe3[1]);
+  strcat(historical[0].idKey, "/");
+  strcat(historical[0].idKey, pipe_1);
+
+  sprintf(pipe_2, "%d", pipe4[0]);
+  strcpy(historical[1].idKey, pipe_2);
+  sprintf(pipe_2, "%d", pipe4[1]);
+  strcat(historical[1].idKey, "/");
+  strcat(historical[1].idKey, pipe_2);
+
+  historical[0] = get_time(historical[0], 'c');
+  historical[1] = get_time(historical[1], 'c');
+
   //=================================================================================
-  //dichiarazione intestazioni per F4, F5, F6
+  //dichiarazione intestazioni per F4, F5, F6, F10
+
 
   int F4 = open("OutputFiles/F4.csv", O_RDWR | O_CREAT, S_IRWXU);
   if (F4 == -1) {
@@ -188,6 +226,12 @@ int main(int argc, char * argv[]) {
   int F6 = open("OutputFiles/F6.csv", O_RDWR | O_CREAT, S_IRWXU);
   if (F6 == -1) {
     ErrExit("open F6.csv failed");
+  }
+
+  int F10 = open("OutputFiles/F10.csv", O_RDWR | O_CREAT | O_APPEND, S_IRWXU);
+
+  if(F10 == -1){
+    ErrExit("open F10 failed");
   }
 
   const char heading[] = "Id;Message;IDSender;IDReceiver;TimeArrival;TimeDeparture\n";
@@ -247,6 +291,7 @@ int main(int argc, char * argv[]) {
    }
    while(1){
      numRead = read(fifo, &message, sizeof(struct msg));
+
      if (numRead < sizeof(struct msg) && numRead != 0) {
 
        ErrExit("Read from fifo failed");
@@ -920,12 +965,23 @@ int main(int argc, char * argv[]) {
    
 
    if(close(pipe3[0]) == -1){
-     ErrExit("Close pipe3 write-end failed");
+     ErrExit("Close pipe3 read-end failed");
    }
 
    if(close(pipe3[1]) == -1){
      ErrExit("Close pipe3 write-end failed");
    }
+
+   if(close(pipe4[0]) == -1){
+     ErrExit("Close pipe4 read-end failed");
+   }
+
+   if(close(pipe4[1]) == -1){
+     ErrExit("Close pipe4 write-end failed");
+   }
+
+   historical[0] = get_time(historical[0], 'd');
+   historical[1] = get_time(historical[1], 'd');
 
    if(close(F4) == -1){
      ErrExit("Close F4 failed");
@@ -943,7 +999,10 @@ int main(int argc, char * argv[]) {
      ErrExit("Close fifo failed by reciver");
    }
 
-   remove_fifo("OutputFiles/my_fifo.txt", fifo);
+
+   for(int i = 0; i < 2; i++){
+     writeF10(historical[i], F10);
+   }
 
    sigprocmask(SIG_SETMASK, &prevSet, NULL);
  }

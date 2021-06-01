@@ -27,7 +27,31 @@ void sigHandler(int sig){
 
 int main(int argc, char * argv[]) {
 
-  struct ipc historical[10] = {};
+  //=================================================================================
+  //creazione del semaforo che permetterà di scrivere i file F8 e F9 prima di essere letti
+
+  key_t semKey1 = ftok("receiver_manager.c", 'G');
+  int semid1 = semget(semKey1, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
+
+  if(semid1 == -1){
+    ErrExit("semget failed SEMAPHORE 1 (SM)");
+  }
+
+  unsigned short semInitVal1[] = {0};
+  union semun arg1;
+  arg1.array = semInitVal1;
+
+  if(semctl(semid1, 0, SETALL, arg1) == -1){
+    ErrExit("semctl failed");
+  }
+
+  struct ipc historical[12] = {};
+
+  sprintf(historical[10].idKey, "%x", semKey1);
+  strcpy(historical[10].ipc, "SEM1");
+  strcpy(historical[10].creator, "SM");
+  historical[10] = get_time(historical[10], 'c');
+
   //=================================================================
   //impostazione per la gestione dei segnali
 
@@ -198,12 +222,25 @@ int main(int argc, char * argv[]) {
   //=================================================================================
   //creazione fifo
 
+  int check;
   int fifo;
 
-  do{
-    fifo = open("OutputFiles/my_fifo.txt", O_WRONLY);
-  }while(fifo == -1);
+  unlink("OutputFiles/my_fifo.txt");
 
+  if((check = mkfifo("OutputFiles/my_fifo.txt", S_IRUSR | S_IWUSR)) == -1){
+    ErrExit("create fifo failed");
+  }
+
+  fifo = open("OutputFiles/my_fifo.txt", O_RDWR);
+
+  if(fifo == -1){
+    ErrExit("Open fifo in RDWR mode failed");
+  }
+
+  sprintf(historical[11].idKey, "%x", fifo);
+  strcpy(historical[11].ipc, "FIFO");
+  strcpy(historical[11].creator, "SM");
+  historical[11] = get_time(historical[11], 'c');
   //=================================================================================
   //creazione pipe e allocazione delle variabili necessarie
 
@@ -239,7 +276,22 @@ int main(int argc, char * argv[]) {
   historical[8] = get_time(historical[8], 'c');
   historical[9] = get_time(historical[9], 'c');
 
+  int F10 = open("OutputFiles/F10.csv", O_RDWR | O_CREAT | O_APPEND, S_IRWXU);
 
+  if(F10 == -1){
+    ErrExit("open F10 failed");
+  }
+
+  const char headingF10[] = "IPC;IDKey;Creator;CreationTime;DestructionTime\n";
+  ssize_t numWrite;
+
+  numWrite = write(F10, headingF10, strlen(headingF10));
+
+  if (numWrite != strlen(headingF10)) {
+    ErrExit("write file F10 (heading)");
+  }
+
+  semOp(semid1, 0, 2);
 
   int F1 = open("OutputFiles/F1.csv", O_RDWR | O_CREAT, S_IRWXU); //creiamo F1.csv con permessi di lettura scrittura
 
@@ -259,11 +311,6 @@ int main(int argc, char * argv[]) {
     ErrExit("open F3 failed");
   }
 
-  int F10 = open("OutputFiles/F10.csv", O_RDWR | O_CREAT, S_IRWXU);
-
-  if(F10 == -1){
-    ErrExit("open F10 failed");
-  }
 
   pid_t pid_S[3] = {0, 0, 0}; //@param contiene i pid dei processi
   int process = 0;
@@ -784,10 +831,6 @@ int main(int argc, char * argv[]) {
     ErrExit("Close F3 failed");
   }
 
-  if(close(fifo) == -1){
-    ErrExit("Close fifo failed by sender");
-  }
-
   historical[0] = get_time(historical[0], 'd');
   if(msgctl(msqid, 0, IPC_RMID) == -1){
     ErrExit("msgctl failed");
@@ -821,6 +864,11 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
+  historical[10] = get_time(historical[10], 'd');
+  if(semctl(semid1, 0, IPC_RMID) == -1){
+    ErrExit("semctl failed");
+  }
+
   historical[7] = get_time(historical[7], 'd');
   if(semctl(semid2, 0, IPC_RMID) == -1){
     ErrExit("semctl failed");
@@ -844,7 +892,15 @@ int main(int argc, char * argv[]) {
     ErrExit("Close pipe2 write-end failed");
   }
 
-  for(int i = 0; i < 10; i++){
+
+  if(close(fifo) == -1){
+    ErrExit("Close fifo failed by sender");
+  }
+
+  historical[11] = get_time(historical[11], 'd');
+  remove_fifo("OutputFiles/my_fifo.txt", fifo);
+
+  for(int i = 0; i < 12; i++){
     writeF10(historical[i], F10);
   }
 

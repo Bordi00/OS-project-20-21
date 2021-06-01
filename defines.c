@@ -407,8 +407,6 @@ void writeF10(struct ipc historical, int F10){
   strcat(result, historical.destruction);
   strcat(result, "\n\0");
 
-  printf("result: %s\n", result);
-
   numWrite = write(F10, result, strlen(result));
 
   if (numWrite != strlen(result)) {

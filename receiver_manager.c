@@ -266,7 +266,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 4;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - INC)");
            }
          }
@@ -275,7 +275,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 4;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - RMV)");
            }
          }
@@ -284,7 +284,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 4;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - SND)");
            }
          }
@@ -304,7 +304,7 @@ int main(int argc, char * argv[]) {
 
          numWrite = write(pipe3[1], &message, sizeof(struct msg));
          if (numWrite != sizeof(struct msg)) {
-           if(errno != EFAULT) {
+           if(errno != EPIPE && errno != EAGAIN) {
              ErrExit("Write on pipe 3 failed");
            }
          }
@@ -332,7 +332,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 4;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - INC)");
            }
          }
@@ -341,7 +341,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 4;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - RMV)");
            }
          }
@@ -350,7 +350,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 4;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - SND)");
            }
          }
@@ -369,7 +369,7 @@ int main(int argc, char * argv[]) {
 
          numWrite = write(pipe3[1], &message, sizeof(struct msg));
          if(numWrite != sizeof(struct msg)){
-           if(errno != EFAULT) {
+           if(errno != EPIPE && errno != EAGAIN) {
              ErrExit("Write on pipe 3 failed");
            }
          }
@@ -410,7 +410,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 4;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - INC)");
            }
          }
@@ -419,7 +419,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 4;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - RMV)");
            }
          }
@@ -428,7 +428,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 4;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R3 - SND)");
            }
          }
@@ -447,7 +447,7 @@ int main(int argc, char * argv[]) {
 
          numWrite = write(pipe3[1], &message, sizeof(struct msg));
          if (numWrite != sizeof(struct msg)) {
-           if(errno != EFAULT) {
+           if(errno != EPIPE && errno != EAGAIN) {
              ErrExit("Write on pipe 3 failed");
            }
          }
@@ -483,7 +483,7 @@ int main(int argc, char * argv[]) {
 
      numRead = read(pipe3[0], &message, sizeof(struct msg));
      if(numRead < sizeof(struct msg)){
-       if(errno != EFAULT) {
+       if(errno != EPIPE && errno != EAGAIN) {
          ErrExit("Read from pipe3 failed");
        }
      }
@@ -502,7 +502,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 5;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - INC)");
            }
          }
@@ -511,7 +511,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 5;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - RMV)");
            }
          }
@@ -520,7 +520,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 5;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - SND)");
            }
          }
@@ -540,7 +540,7 @@ int main(int argc, char * argv[]) {
 
          numWrite = write(pipe4[1], &message, sizeof(struct msg));
          if (numWrite != sizeof(struct msg)) {
-           if(errno != EFAULT) {
+           if(errno != EPIPE && errno != EAGAIN) {
              ErrExit("Write on pipe 4 failed");
            }
          }
@@ -567,7 +567,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 5;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - INC)");
            }
          }
@@ -576,7 +576,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 5;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - RMV)");
            }
          }
@@ -585,7 +585,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 5;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - SND)");
            }
          }
@@ -604,7 +604,7 @@ int main(int argc, char * argv[]) {
 
          numWrite = write(pipe4[1], &message, sizeof(struct msg));
          if(numWrite != sizeof(struct msg)){
-           if(errno != EFAULT) {
+           if(errno != EPIPE && errno != EAGAIN) {
              ErrExit("Write on pipe 4 failed");
            }
          }
@@ -644,7 +644,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 5;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - INC)");
            }
          }
@@ -653,7 +653,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 5;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - RMV)");
            }
          }
@@ -662,7 +662,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 5;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R2 - SND)");
            }
          }
@@ -681,7 +681,7 @@ int main(int argc, char * argv[]) {
 
          numWrite = write(pipe4[1], &message, sizeof(struct msg));
          if (numWrite != sizeof(struct msg)) {
-           if(errno != EFAULT) {
+           if(errno != EPIPE && errno != EAGAIN) {
              ErrExit("Write on pipe 4 failed");
            }
          }
@@ -713,7 +713,7 @@ int main(int argc, char * argv[]) {
 
      numRead = read(pipe4[0], &message, sizeof(struct msg));
      if (numRead < sizeof(struct msg)) {
-       if(errno != EFAULT) {
+       if(errno != EPIPE && errno != EAGAIN) {
          ErrExit("Read from pipe4 failed");
        }
      }
@@ -732,7 +732,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 6;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - INC)");
            }
          }
@@ -741,7 +741,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 6;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - RMV)");
            }
          }
@@ -750,7 +750,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 6;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - SND)");
            }
          }
@@ -790,7 +790,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 6;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - INC)");
            }
          }
@@ -799,7 +799,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 6;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - RMV)");
            }
          }
@@ -808,7 +808,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 6;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - SND)");
            }
          }
@@ -858,7 +858,7 @@ int main(int argc, char * argv[]) {
          sigInc.mtype = 6;
 
          if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - INC)");
            }
          }
@@ -867,7 +867,7 @@ int main(int argc, char * argv[]) {
          sigRmv.mtype = 6;
 
          if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - RMV)");
            }
          }
@@ -876,7 +876,7 @@ int main(int argc, char * argv[]) {
          sigSnd.mtype = 6;
 
          if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-           if(errno != EINTR) {
+           if(errno != EINVAL) {
              ErrExit("Sending pid to Hackler failed (R1 - SND)");
            }
          }
@@ -903,6 +903,7 @@ int main(int argc, char * argv[]) {
  }else{
 
    writeF9(pid_R);
+   printf("Receiver 1\n");
    semOp(semid2, 0, -1);
 
    int status;

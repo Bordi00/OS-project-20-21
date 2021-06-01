@@ -209,8 +209,8 @@ int main(int argc, char * argv[]) {
 
   int pipe1[2];
   int pipe2[2];
-  char pipe_1[5];
-  char pipe_2[5];
+  char pipe_1[5] = "";
+  char pipe_2[5] = "";
 
 
   create_pipe(pipe1);
@@ -218,6 +218,7 @@ int main(int argc, char * argv[]) {
 
   fcntl(pipe1[0], F_SETFL, O_NONBLOCK);
   fcntl(pipe2[0], F_SETFL, O_NONBLOCK);
+
   strcpy(historical[8].ipc, "PIPE1");
   strcpy(historical[9].ipc, "PIPE2");
   strcpy(historical[8].creator, "SM");
@@ -235,8 +236,8 @@ int main(int argc, char * argv[]) {
   strcat(historical[9].idKey, "/");
   strcat(historical[9].idKey, pipe_2);
 
-  historical[8] = get_time(historical[0], 'c');
-  historical[9] = get_time(historical[1], 'c');
+  historical[8] = get_time(historical[8], 'c');
+  historical[9] = get_time(historical[9], 'c');
 
 
 
@@ -377,7 +378,7 @@ int main(int argc, char * argv[]) {
               sigInc.mtype = 1;
 
               if (msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1) {
-                if(errno != EINTR) {
+                if(errno != EINVAL) {
                   ErrExit("Sending pid to Hackler failed (S1 - INC)");
                 }
               }
@@ -386,7 +387,7 @@ int main(int argc, char * argv[]) {
               sigRmv.mtype = 1;
 
               if (msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1) {
-                if(errno != EINTR) {
+                if(errno != EINVAL ) {
                   ErrExit("Sending pid to Hackler failed (S1 - RMV)");
                 }
               }
@@ -395,7 +396,7 @@ int main(int argc, char * argv[]) {
               sigSnd.mtype = 1;
 
               if (msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1) {
-                if(errno != EINTR) {
+                if(errno != EINVAL ) {
                   ErrExit("Sending pid to Hackler failed (S1 - SND)");
                 }
               }
@@ -426,13 +427,14 @@ int main(int argc, char * argv[]) {
                   }
 
                   if (msgsnd(msqid, &m, mSize, 0) == -1) {
-                    if(errno != EINTR) {
+                    if(errno != EINVAL ) {
                       ErrExit("Message Send Failed[S1]");
                     }
                   }
                 }
 
                 if (strcmp(message.type, "SH") == 0) {
+                  printf("Sender 1");
                   semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
                   messageSH = address->ptr;
@@ -453,13 +455,14 @@ int main(int argc, char * argv[]) {
                   address->ptr = messageSH;
 
                   //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
+                  printf("Sender 2\n");
                   semOp(semid, 0, 1);
 
                 }
               } else {
                 nBys = write(pipe1[1], &message, sizeof(message));
                 if (nBys != sizeof(message)) {
-                  if(errno != EFAULT) {
+                  if(errno != EPIPE && errno != EAGAIN) {
                     ErrExit("write to pipe1 failed");
                   }
                 }
@@ -499,7 +502,7 @@ int main(int argc, char * argv[]) {
     while(1){
       numRead = read(pipe1[0], &message, sizeof(struct msg));
       if(numRead == -1){
-        if(errno != EFAULT) {
+        if(errno != EPIPE && errno != EAGAIN) {
           ErrExit("Read from pipe1 failed");
         }
       }
@@ -518,7 +521,7 @@ int main(int argc, char * argv[]) {
             sigInc.mtype = 2;
 
             if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-              if(errno != EINTR) {
+              if(errno != EINVAL ) {
                 ErrExit("Sending pid to Hackler failed (S2 - INC)");
               }
             }
@@ -527,7 +530,7 @@ int main(int argc, char * argv[]) {
             sigRmv.mtype = 2;
 
             if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-              if(errno != EINTR) {
+              if(errno != EINVAL ) {
                 ErrExit("Sending pid to Hackler failed (S2 - RMV)");
               }
             }
@@ -536,7 +539,7 @@ int main(int argc, char * argv[]) {
             sigSnd.mtype = 2;
 
             if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-              if(errno != EINTR) {
+              if(errno != EINVAL ) {
                 ErrExit("Sending pid to Hackler failed (S2 - SND)");
               }
             }
@@ -567,13 +570,14 @@ int main(int argc, char * argv[]) {
                 }
 
                 if (msgsnd(msqid, &m, mSize, 0) == -1) {
-                  if(errno != EINTR) {
+                  if(errno != EINVAL ) {
                     ErrExit("Message Send Failed[S2]");
                   }
                 }
               }
 
               if (strcmp(message.type, "SH") == 0) {
+                printf("Sender 3\n");
                 semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
                 messageSH = address->ptr;
@@ -594,13 +598,14 @@ int main(int argc, char * argv[]) {
                 address->ptr = messageSH;
 
                 //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
+                printf("Sender 4\n");
                 semOp(semid, 0, 1);
 
               }
             } else if (strcmp(message.idSender, "S3") == 0) {
               nBys = write(pipe2[1], &message, sizeof(message));
               if (nBys != sizeof(message)) {
-                if(errno != EFAULT) {
+                if(errno != EPIPE && errno != EAGAIN) {
                   ErrExit("write to pipe2 failed");
                 }
               }
@@ -639,7 +644,7 @@ int main(int argc, char * argv[]) {
     while(1) {
       numRead = read(pipe2[0], &message, sizeof(struct msg));
       if(numRead ==-1) {
-        if (errno != EFAULT) {
+        if (errno != EPIPE && errno != EAGAIN) {
           ErrExit("Read from pipe2 failed");
         }
       }
@@ -658,7 +663,7 @@ int main(int argc, char * argv[]) {
             sigInc.mtype = 3;
 
             if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-              if(errno != EINTR) {
+              if(errno != EINVAL ) {
                 ErrExit("Sending pid to Hackler failed (S3 - INC)");
               }
             }
@@ -667,7 +672,7 @@ int main(int argc, char * argv[]) {
             sigRmv.mtype = 3;
 
             if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-              if(errno != EINTR) {
+              if(errno != EINVAL ) {
                 ErrExit("Sending pid to Hackler failed (S3 - RMV)");
               }
             }
@@ -676,7 +681,7 @@ int main(int argc, char * argv[]) {
             sigSnd.mtype = 3;
 
             if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-              if(errno != EINTR) {
+              if(errno != EINVAL ) {
                 ErrExit("Sending pid to Hackler failed (S3 - SND)");
               }
             }
@@ -704,11 +709,12 @@ int main(int argc, char * argv[]) {
               }
 
               if (msgsnd(msqid, &m, mSize, 0) == -1) {
-                if(errno != EINTR) {
+                if(errno != EINVAL ) {
                   ErrExit("Message Send Failed[S3]");
                 }
               }
             } else if (strcmp(message.type, "SH") == 0) {
+              printf("Sender 5\n");
               semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
               messageSH = address->ptr;
@@ -729,6 +735,7 @@ int main(int argc, char * argv[]) {
               address->ptr = messageSH;
 
               //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
+              printf("Sender 6\n");
               semOp(semid, 0, 1);
             } else {
               ssize_t numWrite = write(fifo, &message, sizeof(struct msg));
@@ -748,6 +755,7 @@ int main(int argc, char * argv[]) {
   }else{
 
     writeF8(pid_S);
+    printf("Sender 8\n");
     semOp(semid2, 0, -1);
 
     int status;
@@ -839,7 +847,6 @@ int main(int argc, char * argv[]) {
   for(int i = 0; i < 10; i++){
     writeF10(historical[i], F10);
   }
-
 
   sigprocmask(SIG_SETMASK, &prevSet, NULL);
 

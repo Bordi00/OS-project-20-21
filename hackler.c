@@ -88,14 +88,26 @@ int main(int argc, char * argv[]) {
   ssize_t numRead;
   int i = 0;
   char tmp;
+  bool finish = false;
+  bool check = false;
   int pid;
   struct hackler actions = {};
 
   lseek(F7, 23, SEEK_CUR);
 
-  while((numRead = read(F7, &tmp, sizeof(char))) > 0) { //while che legge carattere per carattere da F0.csv
+  while(finish == false ) { //while che legge carattere per carattere da F0.csv
 
-    if (numRead > 0) {
+    numRead = read(F7, &tmp, sizeof(char));
+    if(numRead == 0){
+      if(tmp != '\n'){
+        i++;
+        tmp = '\n';
+      }else{
+        check = true;
+      }
+      finish = true;
+    }
+    if (check == false) {
       if (tmp != '\n') {
         buffer[i] = tmp;
         i++;

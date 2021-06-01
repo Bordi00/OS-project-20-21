@@ -315,6 +315,8 @@ int main(int argc, char * argv[]) {
     struct msg message = {};
     char tmp;
     int i = 0;
+    bool finish = false;
+    bool check = false;
 
 
     if(close(pipe1[0]) == -1){
@@ -339,111 +341,132 @@ int main(int argc, char * argv[]) {
     }
 
     while(1){
-
-      numRead = read(F0, &tmp, sizeof(char));
-
-      if(numRead > 0) {
-        if (tmp != '\n') {
-          buffer[i] = tmp;
-          i++;
-        } else{
-          buffer[i] = '\0';
-
-          i = 0;
-          msgFile = get_time_arrival();
-          message = fill_structure(buffer);
-
-          pid = fork();
-
-          if (pid == -1) {
-            ErrExit("Fork failed! Child of S1 not created");
+      if(finish == false) {
+        numRead = read(F0, &tmp, sizeof(char));
+        if(numRead == 0){
+          if(tmp != '\n'){
+            i++;
+            tmp = '\n';
           }
-
-          if(pid > 0){
-            //mandare il pid sulla MQ e cambio mtype
-            sigInc.pid = pid;
-            sigInc.mtype = 1;
-
-            if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S1 - INC)");
-            }
-
-            sigRmv.pid = pid;
-            sigRmv.mtype = 1;
-
-            if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S1 - RMV)");
-            }
-
-            sigSnd.pid = pid;
-            sigSnd.mtype = 1;
-
-            if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S1 - SND)");
-            }
+          else{
+            check = true;
           }
-          if (pid == 0) {
+          finish = true;
+        }
+        if(check == false) {
 
-            int sec;
+          if (tmp != '\n') {
+            buffer[i] = tmp;
+            i++;
+          } else {
+            buffer[i] = '\0';
 
-            if ((sec = sleep(atoi(message.delS1))) > 0 && wait_time == true) {
-              sleep(sec);
-              *check_time = false;
+            i = 0;
+            msgFile = get_time_arrival();
+            message = fill_structure(buffer);
+
+            pid = fork();
+
+            if (pid == -1) {
+              ErrExit("Fork failed! Child of S1 not created");
             }
 
-            msgFile = get_time_departure(msgFile);
-            writeFile(msgFile, message, F1);
+            if (pid > 0) {
+              //mandare il pid sulla MQ e cambio mtype
+              sigInc.pid = pid;
+              sigInc.mtype = 1;
 
-            if (strcmp(message.idSender, "S1") == 0) {
-
-              if (strcmp(message.type, "Q") == 0) {
-                m.message = message;
-
-                if (strcmp(message.idReceiver, "R1") == 0) {
-                  m.mtype = 1;
-                } else if (strcmp(message.idReceiver, "R2") == 0) {
-                  m.mtype = 2;
-                } else if (strcmp(message.idReceiver, "R3") == 0) {
-                  m.mtype = 3;
-                }
-
-                if (msgsnd(msqid, &m, mSize, 0) == -1) {
-                  ErrExit("Message Send Failed[S1]");
+              if (msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1) {
+                if(errno != EINTR) {
+                  ErrExit("Sending pid to Hackler failed (S1 - INC)");
                 }
               }
 
-              if (strcmp(message.type, "SH") == 0) {
-                semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
+              sigRmv.pid = pid;
+              sigRmv.mtype = 1;
 
-                messageSH = address->ptr;
-
-
-                //scrivo sulla shared memory il  messaggio
-                strcpy(messageSH->id, message.id);
-                strcpy(messageSH->message, message.message);
-                strcpy(messageSH->idSender, message.idSender);
-                strcpy(messageSH->idReceiver, message.idReceiver);
-                strcpy(messageSH->delS1, message.delS1);
-                strcpy(messageSH->delS2, message.delS2);
-                strcpy(messageSH->delS3, message.delS3);
-                strcpy(messageSH->type, message.type);
-
-
-                messageSH++;
-                address->ptr = messageSH;
-
-                //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-                semOp(semid, 0, 1);
-
+              if (msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1) {
+                if(errno != EINTR) {
+                  ErrExit("Sending pid to Hackler failed (S1 - RMV)");
+                }
               }
-            } else{
-              nBys = write(pipe1[1], &message, sizeof(message));
-              if (nBys != sizeof(message)) {
-                ErrExit("write to pipe1 failed");
+
+              sigSnd.pid = pid;
+              sigSnd.mtype = 1;
+
+              if (msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1) {
+                if(errno != EINTR) {
+                  ErrExit("Sending pid to Hackler failed (S1 - SND)");
+                }
               }
             }
+            if (pid == 0) {
 
-            exit(0);
+              int sec;
+
+              if ((sec = sleep(atoi(message.delS1))) > 0 && wait_time == true) {
+                sleep(sec);
+                *check_time = false;
+              }
+
+              msgFile = get_time_departure(msgFile);
+              writeFile(msgFile, message, F1);
+
+              if (strcmp(message.idSender, "S1") == 0) {
+
+                if (strcmp(message.type, "Q") == 0) {
+                  m.message = message;
+
+                  if (strcmp(message.idReceiver, "R1") == 0) {
+                    m.mtype = 1;
+                  } else if (strcmp(message.idReceiver, "R2") == 0) {
+                    m.mtype = 2;
+                  } else if (strcmp(message.idReceiver, "R3") == 0) {
+                    m.mtype = 3;
+                  }
+
+                  if (msgsnd(msqid, &m, mSize, 0) == -1) {
+                    if(errno != EINTR) {
+                      ErrExit("Message Send Failed[S1]");
+                    }
+                  }
+                }
+
+                if (strcmp(message.type, "SH") == 0) {
+                  semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
+
+                  messageSH = address->ptr;
+
+
+                  //scrivo sulla shared memory il  messaggio
+                  strcpy(messageSH->id, message.id);
+                  strcpy(messageSH->message, message.message);
+                  strcpy(messageSH->idSender, message.idSender);
+                  strcpy(messageSH->idReceiver, message.idReceiver);
+                  strcpy(messageSH->delS1, message.delS1);
+                  strcpy(messageSH->delS2, message.delS2);
+                  strcpy(messageSH->delS3, message.delS3);
+                  strcpy(messageSH->type, message.type);
+
+
+                  messageSH++;
+                  address->ptr = messageSH;
+
+                  //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
+                  semOp(semid, 0, 1);
+
+                }
+              } else {
+                nBys = write(pipe1[1], &message, sizeof(message));
+                if (nBys != sizeof(message)) {
+                  if(errno != EFAULT) {
+                    ErrExit("write to pipe1 failed");
+                  }
+                }
+              }
+
+              exit(0);
+            }
           }
         }
       }
@@ -475,10 +498,12 @@ int main(int argc, char * argv[]) {
 
     while(1){
       numRead = read(pipe1[0], &message, sizeof(struct msg));
-      if(numRead > 0) {
-        if (strcmp(message.id, "-1") == 0) {
-          break;
+      if(numRead == -1){
+        if(errno != EFAULT) {
+          ErrExit("Read from pipe1 failed");
         }
+      }
+      if(numRead > 0) {
 
         if (numRead == sizeof(struct msg)) {
           msgFile = get_time_arrival();
@@ -493,21 +518,27 @@ int main(int argc, char * argv[]) {
             sigInc.mtype = 2;
 
             if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S2 - INC)");
+              if(errno != EINTR) {
+                ErrExit("Sending pid to Hackler failed (S2 - INC)");
+              }
             }
 
             sigRmv.pid = pid;
             sigRmv.mtype = 2;
 
             if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S2 - RMV)");
+              if(errno != EINTR) {
+                ErrExit("Sending pid to Hackler failed (S2 - RMV)");
+              }
             }
 
             sigSnd.pid = pid;
             sigSnd.mtype = 2;
 
             if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S2 - SND)");
+              if(errno != EINTR) {
+                ErrExit("Sending pid to Hackler failed (S2 - SND)");
+              }
             }
           }
 
@@ -536,7 +567,9 @@ int main(int argc, char * argv[]) {
                 }
 
                 if (msgsnd(msqid, &m, mSize, 0) == -1) {
-                  ErrExit("Message Send Failed[S2]");
+                  if(errno != EINTR) {
+                    ErrExit("Message Send Failed[S2]");
+                  }
                 }
               }
 
@@ -567,7 +600,9 @@ int main(int argc, char * argv[]) {
             } else if (strcmp(message.idSender, "S3") == 0) {
               nBys = write(pipe2[1], &message, sizeof(message));
               if (nBys != sizeof(message)) {
-                ErrExit("write to pipe2 failed");
+                if(errno != EFAULT) {
+                  ErrExit("write to pipe2 failed");
+                }
               }
             }
             exit(0);
@@ -603,11 +638,13 @@ int main(int argc, char * argv[]) {
 
     while(1) {
       numRead = read(pipe2[0], &message, sizeof(struct msg));
+      if(numRead ==-1) {
+        if (errno != EFAULT) {
+          ErrExit("Read from pipe2 failed");
+        }
+      }
 
       if(numRead > 0) {
-        if (strcmp(message.id, "-1") == 0) {
-          break;
-        }
         if (numRead == sizeof(struct msg)) {
           msgFile = get_time_arrival();
           pid = fork();
@@ -621,21 +658,27 @@ int main(int argc, char * argv[]) {
             sigInc.mtype = 3;
 
             if(msgsnd(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S3 - INC)");
+              if(errno != EINTR) {
+                ErrExit("Sending pid to Hackler failed (S3 - INC)");
+              }
             }
 
             sigRmv.pid = pid;
             sigRmv.mtype = 3;
 
             if(msgsnd(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S3 - RMV)");
+              if(errno != EINTR) {
+                ErrExit("Sending pid to Hackler failed (S3 - RMV)");
+              }
             }
 
             sigSnd.pid = pid;
             sigSnd.mtype = 3;
 
             if(msgsnd(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 0) == -1){
-              ErrExit("Sending pid to Hackler failed (S3 - SND)");
+              if(errno != EINTR) {
+                ErrExit("Sending pid to Hackler failed (S3 - SND)");
+              }
             }
           }
           if (pid == 0) {
@@ -661,7 +704,9 @@ int main(int argc, char * argv[]) {
               }
 
               if (msgsnd(msqid, &m, mSize, 0) == -1) {
-                ErrExit("Message Send Failed[S3]");
+                if(errno != EINTR) {
+                  ErrExit("Message Send Failed[S3]");
+                }
               }
             } else if (strcmp(message.type, "SH") == 0) {
               semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto

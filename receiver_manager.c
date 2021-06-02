@@ -46,6 +46,7 @@ int main(int argc, char * argv[]) {
   }
 
   semOp(semid1, 0, -1);
+  printf("RECEIVER\n");
   //=================================================================
   //impostazione per la gestione dei segnali
 
@@ -90,24 +91,6 @@ int main(int argc, char * argv[]) {
 
   if(semctl(semid2, 0, GETALL, arg2) == -1){
     ErrExit("semctl failed");
-  }
-
-  //==================================================================================
-  //creazione semaforo apertura della fifo
-
-  key_t semKey3 = ftok("receiver_manager.c", 'C');
-  int semid3 = semget(semKey3, 1,  S_IRUSR | S_IWUSR);
-
-  if(semid3 == -1){
-    ErrExit("semget failed");
-  }
-
-  unsigned short semInitVal3[1];
-  union semun arg3;
-  arg3.array = semInitVal3;
-
-  if(semctl(semid3, 0, GETALL, arg3) == -1){
-    ErrExit("semctl failed (semid3)");
   }
 
   //===============================================================

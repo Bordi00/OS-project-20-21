@@ -32,7 +32,7 @@ int main(int argc, char * argv[]) {
   }
 
   semOp(semid1, 0, -1);
-
+  printf("HACKLER\n");
   //==================================================================================
   //creazione della message queue tra Sender e Hackler
 

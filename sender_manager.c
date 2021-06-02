@@ -28,7 +28,7 @@ void sigHandler(int sig){
 int main(int argc, char * argv[]) {
 
   //=================================================================================
-  //creazione del semaforo che permetterà di scrivere i file F8 e F9 prima di essere letti
+  //creazione del semaforo per sincronizzare i processi
 
   key_t semKey1 = ftok("receiver_manager.c", 'G');
   int semid1 = semget(semKey1, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
@@ -292,6 +292,8 @@ int main(int argc, char * argv[]) {
   }
 
   semOp(semid1, 0, 2);
+
+  printf("SENDER\n");
 
   int F1 = open("OutputFiles/F1.csv", O_RDWR | O_CREAT, S_IRWXU); //creiamo F1.csv con permessi di lettura scrittura
 

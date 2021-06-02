@@ -1,2 +1,6 @@
 Id;Message;IDSender;IDReceiver;TimeArrival;TimeDeparture
-2;Come va?;3;1;13:21:2;13:21:3
+5;Amico;3;1;10:47:12;10:47:13
+8;Arrivederci;3;3;10:47:12;10:47:13
+7;Oggi;3;3;10:47:11;10:47:14
+13;Gintonic;3;2;10:47:10;10:47:15
+6;Tempo;3;2;10:47:15;10:47:23

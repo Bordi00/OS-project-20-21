@@ -31,8 +31,8 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
-  semOp(semid1, 0, -1);
-  printf("HACKLER\n");
+  semOp(semid1, 0, -1); //Mi blocco finchè il sender non termina la creazione delle ipc
+
   //==================================================================================
   //creazione della message queue tra Sender e Hackler
 

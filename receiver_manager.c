@@ -45,8 +45,8 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
-  semOp(semid1, 0, -1);
-  printf("RECEIVER\n");
+  semOp(semid1, 0, -1); //Mi blocco finchè il sender non termina la creazione delle ipc
+
   //=================================================================
   //impostazione per la gestione dei segnali
 
@@ -61,7 +61,7 @@ int main(int argc, char * argv[]) {
   // blocking all signals but SIGTERM, SIGUSR1, SIGCONT
   sigprocmask(SIG_SETMASK, &mySet, NULL);
 
-  if(signal(SIGUSR1, sigHandler) == SIG_ERR){
+  if(signal(SIGUSR1, sigHandler) == SIG_ERR || signal(SIGCONT, sigHandler) == SIG_ERR){
     ErrExit("signal failed");
   }
 

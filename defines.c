@@ -9,12 +9,12 @@ struct msg fill_structure(char buffer[]){
 
 		struct msg message = {};
 
-		int counter = 0;
+		int counter = 0; //conta quale campo del messaggio sto leggendo dal buffer
 		int index = 0;
 		int j = 0;
 
-			//riempo la struct con i messaggi
-		for(; buffer[j] != '\0'; j++){ //itero stringa per stringa
+		//riempo la struct con il messaggio
+		for(; buffer[j] != '\0'; j++){ //itero stringa
 			if(buffer[j] == ';'){
 				index = 0;
 				counter++;
@@ -195,6 +195,7 @@ void writeFile(struct container msgFile, struct msg message, int fd){
   strcpy(msgFile.id, message.id);
 	strcpy(msgFile.message, message.message);
 
+	//salviamo solo la lettera del sender/receiver
 	msgFile.idSender[0] = message.idSender[1];
 	msgFile.idReceiver[0] = message.idReceiver[1];
 
@@ -211,6 +212,7 @@ void writeFile(struct container msgFile, struct msg message, int fd){
   strcat(result, msgFile.time_departure);
   strcat(result, "\n\0");
 
+  //write atomica
   numWrite = write(fd, result, strlen(result));
 
   if (numWrite != strlen(result)) {

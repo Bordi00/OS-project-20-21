@@ -66,7 +66,7 @@ struct hackler{
 };
 
 struct signal{
-  long mtype;
+  long mtype; //identifica a quale processo appartiene il pid (1:S1, 2:S2, 3:S3, 4:R3, 5:R2, 6:R1)
   int pid;
 };
 

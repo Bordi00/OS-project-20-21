@@ -22,7 +22,6 @@ void sigHandler(int sig){
   if(sig == SIGCONT){
     wait_time = false;
   }
-
 }
 
 int main(int argc, char * argv[]) {
@@ -45,12 +44,13 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
-  struct ipc historical[12] = {};
+  struct ipc historical[12] = {}; //struttura che contiene lo storico delle IPC usate dai processi da scrivere in F10
 
+  //inserimento nello storico IPC del semafor sem1
   sprintf(historical[10].idKey, "%x", semKey1);
   strcpy(historical[10].ipc, "SEM1");
   strcpy(historical[10].creator, "SM");
-  historical[10] = get_time(historical[10], 'c');
+  historical[10] = get_time(historical[10], 'c'); //prendiamo il tempo di creazione
 
   //=================================================================
   //impostazione per la gestione dei segnali
@@ -67,18 +67,18 @@ int main(int argc, char * argv[]) {
   // blocking all signals but SIGTERM, SIGUSR1, SIGCONT
   sigprocmask(SIG_SETMASK, &mySet, NULL);
 
-  if(signal(SIGUSR1, sigHandler) == SIG_ERR){
+  if(signal(SIGUSR1, sigHandler) == SIG_ERR || signal(SIGCONT, sigHandler) == SIG_ERR){
     ErrExit("signal failed");
   }
 
   bool *check_time = &wait_time; //modifica il wait_time
 
  //===================================================================
- //creazione msg queue
+ //creazione msg queue usata per la comunicazione tra Sender e Receiver
 
   struct mymsg{
-      long mtype;
-      struct msg message;
+      long mtype; //identifica quale receiver deve ricevere il messaggio
+      struct msg message;  //contiene il messaggio da trasmettere
   }m;
 
   key_t msgKey = 01110001;
@@ -88,15 +88,16 @@ int main(int argc, char * argv[]) {
     ErrExit("msgget failed");
   }
 
-  ssize_t mSize = sizeof(struct mymsg) - sizeof(long);
+  ssize_t mSize = sizeof(struct mymsg) - sizeof(long); //dimensione in byte di un messaggio
 
+  //inserimento della MQ nello storico IPC
   sprintf(historical[0].idKey, "%x", msgKey);
   strcpy(historical[0].ipc, "Q");
   strcpy(historical[0].creator, "SM");
   historical[0] = get_time(historical[0], 'c');
 
   //==================================================================================
-  //creazione della message queue tra Sender e Hackler
+  //creazione delle message queue (Sender->Hackler) per l'invio dei pid a cui inviare i segnali
 
   struct signal sigInc; //MQ per IncreaseDelay
 
@@ -107,6 +108,7 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+  //inserimento della MQ nello storico IPC
   sprintf(historical[1].idKey, "%x", mqInc_Key);
   strcpy(historical[1].ipc, "Q-INC");
   strcpy(historical[1].creator, "SM");
@@ -122,6 +124,7 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+  //inserimento della MQ nello storico IPC
   sprintf(historical[2].idKey, "%x", mqRmv_Key);
   strcpy(historical[2].ipc, "Q-RMV");
   strcpy(historical[2].creator, "SM");
@@ -138,6 +141,7 @@ int main(int argc, char * argv[]) {
     ErrExit("internal msgget failed");
   }
 
+  //inserimento della MQ nello storico IPC
   sprintf(historical[3].idKey, "%x", mqSnd_Key);
   strcpy(historical[3].ipc, "Q-SND");
   strcpy(historical[3].creator, "SM");
@@ -151,6 +155,7 @@ int main(int argc, char * argv[]) {
   shmid = alloc_shared_memory(shmKey, sizeof(struct message));
   struct message *messageSH = (struct message *)get_shared_memory(shmid, 0);
 
+  //inserimento della MQ nello storico IPC
   sprintf(historical[4].idKey, "%x", shmKey);
   strcpy(historical[4].ipc, "SH");
   strcpy(historical[4].creator, "SM");
@@ -165,8 +170,9 @@ int main(int argc, char * argv[]) {
   shmid2 = alloc_shared_memory(shmKey2, sizeof(struct address));
   struct address *address = (struct address *)get_shared_memory(shmid2, 0);
 
-  address->ptr = messageSH;
+  address->ptr = messageSH; //il puntatore punta alla zona di memoria della SH
 
+  //inserimento della SH nello storico IPC
   sprintf(historical[5].idKey, "%x", shmKey2);
   strcpy(historical[5].ipc, "SH2");
   strcpy(historical[5].creator, "SM");
@@ -190,6 +196,7 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
+  //inserimento del Semaforo nello storico IPC
   sprintf(historical[6].idKey, "%x", semKey);
   strcpy(historical[6].ipc, "SEM");
   strcpy(historical[6].creator, "SM");
@@ -213,6 +220,7 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
+  //inserimento del Semaforo nello storico IPC
   sprintf(historical[7].idKey, "%x", semKey2);
   strcpy(historical[7].ipc, "SEM2");
   strcpy(historical[7].creator, "SM");
@@ -231,17 +239,18 @@ int main(int argc, char * argv[]) {
     ErrExit("create fifo failed");
   }
 
-  fifo = open("OutputFiles/my_fifo.txt", O_RDWR);
+  fifo = open("OutputFiles/my_fifo.txt", O_RDWR); //apertura in RDWR della fifo
 
   if(fifo == -1){
     ErrExit("Open fifo in RDWR mode failed");
   }
 
+  //inserimento della FIFO nello storico IPC
   sprintf(historical[11].idKey, "%x", fifo);
   strcpy(historical[11].ipc, "FIFO");
   strcpy(historical[11].creator, "SM");
   historical[11] = get_time(historical[11], 'c');
-  //=================================================================================
+  //=================================================================================//
   //creazione pipe e allocazione delle variabili necessarie
 
   int pipe1[2];
@@ -256,6 +265,7 @@ int main(int argc, char * argv[]) {
   fcntl(pipe1[0], F_SETFL, O_NONBLOCK);
   fcntl(pipe2[0], F_SETFL, O_NONBLOCK);
 
+  //inserimento delle PIPE nello storico IPC
   strcpy(historical[8].ipc, "PIPE1");
   strcpy(historical[9].ipc, "PIPE2");
   strcpy(historical[8].creator, "SM");
@@ -276,12 +286,14 @@ int main(int argc, char * argv[]) {
   historical[8] = get_time(historical[8], 'c');
   historical[9] = get_time(historical[9], 'c');
 
+  //apertura di F10 in O_APPEND per evitare sovrascritture
   int F10 = open("OutputFiles/F10.csv", O_RDWR | O_CREAT | O_APPEND, S_IRWXU);
 
   if(F10 == -1){
     ErrExit("open F10 failed");
   }
 
+  //dichiarazione e scrittura intestazione F10
   const char headingF10[] = "IPC;IDKey;Creator;CreationTime;DestructionTime\n";
   ssize_t numWrite;
 
@@ -291,10 +303,9 @@ int main(int argc, char * argv[]) {
     ErrExit("write file F10 (heading)");
   }
 
-  semOp(semid1, 0, 2);
+  semOp(semid1, 0, 2); //finita creazione IPC, sblocchiamo il semaforo
 
-  printf("SENDER\n");
-
+  //aperture dei File di scrittura
   int F1 = open("OutputFiles/F1.csv", O_RDWR | O_CREAT, S_IRWXU); //creiamo F1.csv con permessi di lettura scrittura
 
   if(F1 == -1){
@@ -314,10 +325,11 @@ int main(int argc, char * argv[]) {
   }
 
 
+  //creazione dei figli S1,S2,S3
   pid_t pid_S[3] = {0, 0, 0}; //@param contiene i pid dei processi
-  int process = 0;
+  int process = 0;  //identifica il processo
 
-  //intestazione dei file F1, F2, F3
+  //dichiarazione intestazione dei file F1, F2, F3
   const char heading[] = "Id;Message;IDSender;IDReceiver;TimeArrival;TimeDeparture\n";
 
   pid_t pid;
@@ -353,10 +365,8 @@ int main(int argc, char * argv[]) {
     }
   }
 
-
+  //================================= S1 =====================================//
   if(process == 1){
-
-
     //dichiarazione variabili di S1;
     ssize_t numRead;
     ssize_t numWrite;
@@ -391,9 +401,10 @@ int main(int argc, char * argv[]) {
     }
 
     while(1){
-      if(finish == false) {
+
+      if(finish == false) { //false: file non finito
         numRead = read(F0, &tmp, sizeof(char));
-        if(numRead == 0){
+        if(numRead == 0){ //non c'è piu niente da leggere
           if(tmp != '\n'){
             i++;
             tmp = '\n';
@@ -412,17 +423,18 @@ int main(int argc, char * argv[]) {
             buffer[i] = '\0';
 
             i = 0;
-            msgFile = get_time_arrival();
-            message = fill_structure(buffer);
+            msgFile = get_time_arrival(); //salviamo il time arrival
+            message = fill_structure(buffer); //salviamo il messaggio appena letto
 
-            pid = fork();
+            pid = fork(); //creo un figlio per gestire in maniera asincrona il messaggio
 
             if (pid == -1) {
               ErrExit("Fork failed! Child of S1 not created");
             }
 
-            if (pid > 0) {
-              //mandare il pid sulla MQ e cambio mtype
+            //mandiamo i pid all'hackcler tramite le MQ
+            if (pid > 0) {  //siamo nel padre (S1)
+              //mandiamo il pid sulla MQ e cambio mtype
               sigInc.pid = pid;
               sigInc.mtype = 1;
 
@@ -450,13 +462,14 @@ int main(int argc, char * argv[]) {
                 }
               }
             }
-            if (pid == 0) {
 
+            //siamo nel figlio
+            if (pid == 0) {
               int sec;
 
               if ((sec = sleep(atoi(message.delS1))) > 0 && wait_time == true) {
-                sleep(sec);
-                *check_time = false;
+                sleep(sec); //dormiamo il numero di secondi rimasti dopo l'eventuale ricezione di IncDelay
+                *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
               }
 
               msgFile = get_time_departure(msgFile);
@@ -476,14 +489,13 @@ int main(int argc, char * argv[]) {
                   }
 
                   if (msgsnd(msqid, &m, mSize, 0) == -1) {
-                    if(errno != EINVAL ) {
+                    if(errno != EINVAL) {
                       ErrExit("Message Send Failed[S1]");
                     }
                   }
                 }
 
                 if (strcmp(message.type, "SH") == 0) {
-                  printf("Sender 1");
                   semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
                   messageSH = address->ptr;
@@ -504,11 +516,10 @@ int main(int argc, char * argv[]) {
                   address->ptr = messageSH;
 
                   //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-                  printf("Sender 2\n");
                   semOp(semid, 0, 1);
 
                 }
-              } else {
+              } else { //che sia S2 o S3 lo mando su pipe
                 nBys = write(pipe1[1], &message, sizeof(message));
                 if (nBys != sizeof(message)) {
                   if(errno != EPIPE && errno != EAGAIN) {
@@ -550,20 +561,24 @@ int main(int argc, char * argv[]) {
 
     while(1){
       numRead = read(pipe1[0], &message, sizeof(struct msg));
+
       if(numRead == -1){
         if(errno != EPIPE && errno != EAGAIN) {
           ErrExit("Read from pipe1 failed");
         }
       }
+
       if(numRead > 0) {
 
         if (numRead == sizeof(struct msg)) {
           msgFile = get_time_arrival();
+
           pid = fork();
 
           if (pid == -1) {
             ErrExit("Fork failed! Child of S2 not created");
           }
+
           if(pid > 0){
             //mandare il pid sulla MQ e cambio mtype
             sigInc.pid = pid;
@@ -626,7 +641,6 @@ int main(int argc, char * argv[]) {
               }
 
               if (strcmp(message.type, "SH") == 0) {
-                printf("Sender 3\n");
                 semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
                 messageSH = address->ptr;
@@ -647,11 +661,10 @@ int main(int argc, char * argv[]) {
                 address->ptr = messageSH;
 
                 //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-                printf("Sender 4\n");
                 semOp(semid, 0, 1);
 
               }
-            } else if (strcmp(message.idSender, "S3") == 0) {
+            } else {
               nBys = write(pipe2[1], &message, sizeof(message));
               if (nBys != sizeof(message)) {
                 if(errno != EPIPE && errno != EAGAIN) {
@@ -692,6 +705,7 @@ int main(int argc, char * argv[]) {
 
     while(1) {
       numRead = read(pipe2[0], &message, sizeof(struct msg));
+
       if(numRead ==-1) {
         if (errno != EPIPE && errno != EAGAIN) {
           ErrExit("Read from pipe2 failed");
@@ -700,12 +714,14 @@ int main(int argc, char * argv[]) {
 
       if(numRead > 0) {
         if (numRead == sizeof(struct msg)) {
+
           msgFile = get_time_arrival();
           pid = fork();
 
           if (pid == -1) {
             ErrExit("Fork failed! Child of S2 not created");
           }
+
           if(pid > 0){
             //mandare il pid sulla MQ e cambio mtype
             sigInc.pid = pid;
@@ -735,6 +751,7 @@ int main(int argc, char * argv[]) {
               }
             }
           }
+
           if (pid == 0) {
             int sec;
 
@@ -763,7 +780,6 @@ int main(int argc, char * argv[]) {
                 }
               }
             } else if (strcmp(message.type, "SH") == 0) {
-              printf("Sender 5\n");
               semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
               messageSH = address->ptr;
@@ -784,7 +800,6 @@ int main(int argc, char * argv[]) {
               address->ptr = messageSH;
 
               //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
-              printf("Sender 6\n");
               semOp(semid, 0, 1);
             } else {
               ssize_t numWrite = write(fifo, &message, sizeof(struct msg));
@@ -797,14 +812,11 @@ int main(int argc, char * argv[]) {
         }
       }
     }
-    while(wait(NULL) != -1);
 
-    exit(0);
 
   }else{
 
     writeF8(pid_S);
-    printf("Sender 8\n");
     semOp(semid2, 0, -1);
 
     int status;

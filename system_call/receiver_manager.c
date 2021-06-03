@@ -1,7 +1,3 @@
-//
-// Created by matteo on 29/05/21.
-//
-
 #include "err_exit.h"
 #include "defines.h"
 #include "shared_memory.h"
@@ -931,7 +927,6 @@ int main(int argc, char * argv[]) {
  }else{
 
    writeF9(pid_R);
-   printf("Receiver 1\n");
    semOp(semid2, 0, -1);
 
    int status;

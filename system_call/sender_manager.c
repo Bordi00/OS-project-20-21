@@ -1,7 +1,3 @@
-//
-// Created by matteo on 29/05/21.
-//
-
 #include "err_exit.h"
 #include "defines.h"
 #include "shared_memory.h"
@@ -404,9 +400,9 @@ int main(int argc, char * argv[]) {
 
       if(finish == false) { //false: file non finito
         numRead = read(F0, &tmp, sizeof(char));
-        if(numRead == 0){ //non c'è piu niente da leggere
-          if(tmp != '\n'){
-            i++;
+        if(numRead == 0){   //non c'è piu niente da leggere
+          if(tmp != '\n'){   //se alla fine del file non c'è un invio
+            i++;             //lo inseriamo nella successiva cella del buffer
             tmp = '\n';
           }
           else{
@@ -472,9 +468,10 @@ int main(int argc, char * argv[]) {
                 *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
               }
 
-              msgFile = get_time_departure(msgFile);
-              writeFile(msgFile, message, F1);
+              msgFile = get_time_departure(msgFile);  //segniamo orario di partenza
+              writeFile(msgFile, message, F1);  //scriviamo il messaggio su file
 
+              //invio del messaggio mediante le IPC
               if (strcmp(message.idSender, "S1") == 0) {
 
                 if (strcmp(message.type, "Q") == 0) {
@@ -534,12 +531,10 @@ int main(int argc, char * argv[]) {
         }
       }
     }
-    while(wait(NULL) != -1);
 
-
-    exit(0);
   }else if(process == 2){
 
+    //chiusura dei lati delle pipe che non usiamo
     if(close(pipe1[1]) == -1){
       ErrExit("Close pipe1 write-end failed");
     }
@@ -547,6 +542,7 @@ int main(int argc, char * argv[]) {
       ErrExit("Close pipe2 read-end failed");
     }
 
+    //variabili di S2
     ssize_t numRead;
     ssize_t numWrite;
     ssize_t nBys;
@@ -568,6 +564,7 @@ int main(int argc, char * argv[]) {
         }
       }
 
+      //se leggo con successo dalla pipe gestisco il messaggio
       if(numRead > 0) {
 
         if (numRead == sizeof(struct msg)) {
@@ -680,10 +677,7 @@ int main(int argc, char * argv[]) {
       }
     }
 
-    while(wait(NULL) != -1);
 
-
-    exit(0);
   }else if(process == 3){
 
     if(close(pipe2[1]) == -1){
@@ -694,8 +688,6 @@ int main(int argc, char * argv[]) {
     ssize_t numWrite;
     struct container msgFile = {};
     struct msg message;
-
-
 
     numWrite = write(F3, heading, strlen(heading));
 
@@ -813,14 +805,15 @@ int main(int argc, char * argv[]) {
       }
     }
 
-
+  //==========================================SENDER========================================//
   }else{
 
     writeF8(pid_S);
-    semOp(semid2, 0, -1);
+    semOp(semid2, 0, -1); //sblocco semaforo scrittura
 
     int status;
 
+    //aspetto terminazione figli
     while((pid = wait(&status)) != -1) {
       if (pid == pid_S[0]) {
         printf("S1 %d exited, status = %d\n", pid, WEXITSTATUS(status)); //qui sta eseguendo sicuramente il padre che ha nella variabile pid il pid reale del figlio che ha creato
@@ -833,6 +826,7 @@ int main(int argc, char * argv[]) {
 
   }
 
+  //chiudo le IPC e i file descriptor segnandomi l'ora di distruzione
   if(close(F1) == -1){
     ErrExit("Close F1 failed");
   }
@@ -914,10 +908,12 @@ int main(int argc, char * argv[]) {
   historical[11] = get_time(historical[11], 'd');
   remove_fifo("OutputFiles/my_fifo.txt", fifo);
 
+  //scrivo su F10 lo storico
   for(int i = 0; i < 12; i++){
     writeF10(historical[i], F10);
   }
 
+  //ripristino la maschera segnali
   sigprocmask(SIG_SETMASK, &prevSet, NULL);
 
   return 0;

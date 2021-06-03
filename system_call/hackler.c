@@ -98,9 +98,8 @@ int main(int argc, char * argv[]) {
   }
 
   struct pid pids = {};
-  printf("before semaphore\n");
   semOp(semid2, 0, 0);
-  printf("after semaphore\n");
+
   //controllare funzione per segmentation fault
   pids = get_pidF8(pids);
   pids = get_pidF9(pids);
@@ -135,7 +134,6 @@ int main(int argc, char * argv[]) {
         buffer[i] = '\0';
         i = 0;
         actions = fill_hackler_structure(buffer);
-        printf("message: %s\n", actions.target);
 
         pid = fork();
 
@@ -152,20 +150,17 @@ int main(int argc, char * argv[]) {
 
             if(strcmp(actions.action, "IncreaseDelay") == 0){
               while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){
-                printf("SIGUSR1 %d\n", sigInc.pid);
                 kill(sigInc.pid, SIGUSR1);
               }
             }
 
             if(strcmp(actions.action, "RemoveMSG") == 0){
               while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){
-                printf("RMVMSG %d\n", sigRmv.pid);
                 kill(sigRmv.pid, SIGKILL);
               }
             }
 
             if(strcmp(actions.action, "SendMSG") == 0){
-              printf("SNDMSG\n");
               while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){
                 kill(sigSnd.pid, SIGCONT);
               }
@@ -175,20 +170,17 @@ int main(int argc, char * argv[]) {
 
             if(strcmp(actions.action, "IncreaseDelay") == 0){
               while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 2 , IPC_NOWAIT) != -1){
-                printf("SIGUSR1 %d\n", sigInc.pid);
                 kill(sigInc.pid, SIGUSR1);
               }
             }
 
             if(strcmp(actions.action, "RemoveMSG") == 0){
               while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 2 , IPC_NOWAIT) != -1){
-                printf("RMVMSG %d\n", sigRmv.pid);
                 kill(sigRmv.pid, SIGKILL);
               }
             }
 
             if(strcmp(actions.action, "SendMSG") == 0){
-              printf("SNDMSG\n");
               while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 2 , IPC_NOWAIT) != -1){
                 kill(sigSnd.pid, SIGCONT);
               }
@@ -198,20 +190,17 @@ int main(int argc, char * argv[]) {
 
             if(strcmp(actions.action, "IncreaseDelay") == 0){
               while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 3 , IPC_NOWAIT) != -1){
-                printf("SIGUSR1 %d\n", sigInc.pid);
                 kill(sigInc.pid, SIGUSR1);
               }
             }
 
             if(strcmp(actions.action, "RemoveMSG") == 0){
               while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 3 , IPC_NOWAIT) != -1){
-                printf("RMVMSG %d\n", sigRmv.pid);
                 kill(sigRmv.pid, SIGKILL);
               }
             }
 
             if(strcmp(actions.action, "SendMSG") == 0){
-              printf("SNDMSG\n");
               while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 3 , IPC_NOWAIT) != -1){
                 kill(sigSnd.pid, SIGCONT);
               }
@@ -222,20 +211,17 @@ int main(int argc, char * argv[]) {
 
             if(strcmp(actions.action, "IncreaseDelay") == 0){
               while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 6 , IPC_NOWAIT) != -1){
-                printf("SIGUSR1 %d\n", sigInc.pid);
                 kill(sigInc.pid, SIGUSR1);
               }
             }
 
             if(strcmp(actions.action, "RemoveMSG") == 0){
               while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 6 , IPC_NOWAIT) != -1){
-                printf("RMVMSG %d\n", sigRmv.pid);
                 kill(sigRmv.pid, SIGKILL);
               }
             }
 
             if(strcmp(actions.action, "SendMSG") == 0){
-              printf("SNDMSG\n");
               while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 6 , IPC_NOWAIT) != -1){
                 kill(sigSnd.pid, SIGCONT);
               }
@@ -246,20 +232,17 @@ int main(int argc, char * argv[]) {
 
             if(strcmp(actions.action, "IncreaseDelay") == 0){
               while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 5 , IPC_NOWAIT) != -1){
-                printf("SIGUSR1 %d\n", sigInc.pid);
                 kill(sigInc.pid, SIGUSR1);
               }
             }
 
             if(strcmp(actions.action, "RemoveMSG") == 0){
               while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 5 , IPC_NOWAIT) != -1){
-                printf("RMVMSG %d\n", sigRmv.pid);
                 kill(sigRmv.pid, SIGKILL);
               }
             }
 
             if(strcmp(actions.action, "SendMSG") == 0){
-              printf("SNDMSG\n");
               while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 5 , IPC_NOWAIT) != -1){
                 kill(sigSnd.pid, SIGCONT);
               }
@@ -270,28 +253,23 @@ int main(int argc, char * argv[]) {
 
             if(strcmp(actions.action, "IncreaseDelay") == 0){
               while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 4 , IPC_NOWAIT) != -1){
-                printf("SIGUSR1 %d\n", sigInc.pid);
                 kill(sigInc.pid, SIGUSR1);
               }
             }
 
             if(strcmp(actions.action, "RemoveMSG") == 0){
               while(msgrcv(mqRmv_id, &sigRmv, sizeof(struct signal) - sizeof(long), 4 , IPC_NOWAIT) != -1){
-                printf("RMVMSG %d\n", sigRmv.pid);
                 kill(sigRmv.pid, SIGKILL);
               }
             }
 
             if(strcmp(actions.action, "SendMSG") == 0){
-              printf("SNDMSG\n");
               while(msgrcv(mqSnd_id, &sigSnd, sizeof(struct signal) - sizeof(long), 4 , IPC_NOWAIT) != -1){
                 kill(sigSnd.pid, SIGCONT);
               }
             }
 
           }else{  //SHUTDOWN
-            printf("Shutdown\n");
-
             if(kill(pids.pid_S[0],SIGTERM) == -1){
               ErrExit("Send SIGTERM to S1 failed");
             }

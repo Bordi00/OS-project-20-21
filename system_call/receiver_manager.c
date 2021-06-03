@@ -8,7 +8,7 @@
 #include <sys/msg.h>
 #include <fcntl.h>
 
-bool wait_time = true;
+bool wait_time = true;   //per sapere se devo fare attesa oppure no
 
 void sigHandler(int sig){
   if(sig == SIGUSR1){
@@ -16,7 +16,7 @@ void sigHandler(int sig){
   }
 
   if(sig == SIGCONT){
-    wait_time = false;
+    wait_time = false;  //per svegliare i processi in attesa
   }
 
 }
@@ -254,7 +254,10 @@ int main(int argc, char * argv[]) {
     }
   }
 
+ //=======================================R3=========================================//
  if(process == 3){
+
+   //variabili R3
    ssize_t numWrite;
    ssize_t numRead;
    struct msg message = {};
@@ -271,10 +274,13 @@ int main(int argc, char * argv[]) {
    while(1){
      numRead = read(fifo, &message, sizeof(struct msg));
 
+     //errore lettura FIFO
      if (numRead < sizeof(struct msg) && numRead != 0) {
 
        ErrExit("Read from fifo failed");
      }
+
+     //lettura con successo
      if (numRead == sizeof(struct msg)) {
 
        msgFile = get_time_arrival();

@@ -8,7 +8,7 @@
 #include <sys/msg.h>
 #include <fcntl.h>
 
-bool wait_time = true;
+bool wait_time = true;  //per sapere se devo fare attesa oppure no
 
 void sigHandler(int sig){
   if(sig == SIGUSR1){
@@ -16,7 +16,7 @@ void sigHandler(int sig){
   }
 
   if(sig == SIGCONT){
-    wait_time = false;
+    wait_time = false;  //per svegliare i processi in attesa
   }
 }
 
@@ -382,13 +382,14 @@ int main(int argc, char * argv[]) {
     getcwd(path, PATH_SZ);
     strcat(path, argv[1]);
 
-    int F0 = open(path, O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH); //apriamo F0.csv in sola lettura
+    int F0 = open(path, O_RDONLY, S_IRUSR | S_IRGRP); //apriamo F0.csv in sola lettura
 
     if(F0 == -1){
       ErrExit("open F0 failed");
     }
 
-    lseek(F0, strlen(heading) - 3, SEEK_CUR); //ci spostiamo dopo l'intestazione (heading)
+    const char headingF0[] = "ID;Message;IDSender;IDReceiver;DelS1;DelS2;DelS3;Type\n";
+    lseek(F0, strlen(headingF0), SEEK_CUR); //ci spostiamo dopo l'intestazione (heading)
 
     numWrite = write(F1, heading, strlen(heading));
 
@@ -406,11 +407,11 @@ int main(int argc, char * argv[]) {
             tmp = '\n';
           }
           else{
-            check = true;
+            check = true;   //se c'è gia l'invio check va a true
           }
           finish = true;
         }
-        if(check == false) {
+        if(check == false) {   //se check è false inserisco l'invio in buffer
 
           if (tmp != '\n') {
             buffer[i] = tmp;
@@ -462,10 +463,11 @@ int main(int argc, char * argv[]) {
             //siamo nel figlio
             if (pid == 0) {
               int sec;
-
-              if ((sec = sleep(atoi(message.delS1))) > 0 && wait_time == true) {
-                sleep(sec); //dormiamo il numero di secondi rimasti dopo l'eventuale ricezione di IncDelay
-                *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+              if (strcmp(message.delS1, "-") != 0) {
+                if ((sec = sleep(atoi(message.delS1))) > 0 && wait_time == true) {
+                  sleep(sec); //dormiamo il numero di secondi rimasti dopo l'eventuale ricezione di IncDelay
+                  *check_time = false;  //rimettiamo wait_time a false per la prossima SendMSG
+                }
               }
 
               msgFile = get_time_departure(msgFile);  //segniamo orario di partenza
@@ -495,7 +497,7 @@ int main(int argc, char * argv[]) {
                 if (strcmp(message.type, "SH") == 0) {
                   semOp(semid, 0, -1);  //entro nella sezione critica se il semaforo è a 1 altrimenti aspetto
 
-                  messageSH = address->ptr;
+                  messageSH = address->ptr; //aggiornamento puntatore alla SH
 
 
                   //scrivo sulla shared memory il  messaggio
@@ -509,17 +511,17 @@ int main(int argc, char * argv[]) {
                   strcpy(messageSH->type, message.type);
 
 
-                  messageSH++;
-                  address->ptr = messageSH;
+                  messageSH++;  //incremento puntatore per scrivere nella successiva zona di memoria
+                  address->ptr = messageSH; //salvataggio nuova posizione di inizio scrittura
 
                   //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
                   semOp(semid, 0, 1);
 
                 }
               } else { //che sia S2 o S3 lo mando su pipe
-                nBys = write(pipe1[1], &message, sizeof(message));
+                nBys = write(pipe1[1], &message, sizeof(message));  //invio ad S2 tramite pipe1
                 if (nBys != sizeof(message)) {
-                  if(errno != EPIPE && errno != EAGAIN) {
+                  if(errno != EPIPE && errno != EAGAIN) { //per evitare errori durante shutdown
                     ErrExit("write to pipe1 failed");
                   }
                 }
@@ -532,6 +534,7 @@ int main(int argc, char * argv[]) {
       }
     }
 
+  //========================================S2==================================================//
   }else if(process == 2){
 
     //chiusura dei lati delle pipe che non usiamo
@@ -556,6 +559,7 @@ int main(int argc, char * argv[]) {
     }
 
     while(1){
+      //lettura da pipe1 dei messaggi
       numRead = read(pipe1[0], &message, sizeof(struct msg));
 
       if(numRead == -1){
@@ -576,6 +580,7 @@ int main(int argc, char * argv[]) {
             ErrExit("Fork failed! Child of S2 not created");
           }
 
+          //invio i pid tramite Q a hackler
           if(pid > 0){
             //mandare il pid sulla MQ e cambio mtype
             sigInc.pid = pid;
@@ -609,9 +614,11 @@ int main(int argc, char * argv[]) {
           if (pid == 0) {
             int sec;
 
-            if ((sec = sleep(atoi(message.delS2))) > 0 && wait_time == true) {
-              sleep(sec);
-              *check_time = false;
+            if (strcmp(message.delS2, "-") != 0) {
+              if ((sec = sleep(atoi(message.delS2))) > 0 && wait_time == true) {
+                sleep(sec);
+                *check_time = false;
+              }
             }
 
             msgFile = get_time_departure(msgFile);
@@ -747,9 +754,11 @@ int main(int argc, char * argv[]) {
           if (pid == 0) {
             int sec;
 
-            if ((sec = sleep(atoi(message.delS3))) > 0 && wait_time == true) {
-              sleep(sec);
-              *check_time = false;
+            if (strcmp(message.delS3, "-") != 0) {
+              if ((sec = sleep(atoi(message.delS3))) > 0 && wait_time == true) {
+                sleep(sec);
+                *check_time = false;
+              }
             }
 
             msgFile = get_time_departure(msgFile);
@@ -794,6 +803,7 @@ int main(int argc, char * argv[]) {
               //esco dalla sezione critica e rimetto il semaforo a 1 (libero)
               semOp(semid, 0, 1);
             } else {
+              //invio alla fifo
               ssize_t numWrite = write(fifo, &message, sizeof(struct msg));
               if(numWrite != sizeof(struct msg)){
                 ErrExit("Write on fifo failed");

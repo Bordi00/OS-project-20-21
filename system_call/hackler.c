@@ -85,25 +85,27 @@ int main(int argc, char * argv[]) {
     ErrExit("semctl failed");
   }
 
-  //====================================================================================
+  //====================================================================================//
 
   getcwd(path, PATH_SZ);
   strcat(path, argv[1]); //path contiene il percorso dove risiede F7
 
   //apro il file da leggere
-  int F7 = open(path, O_RDWR, S_IRWXU);
+  int F7 = open(path, O_RDONLY, S_IRUSR | S_IRGRP);
 
   if(F7 == -1){
     ErrExit("open F7 failed");
   }
 
-  struct pid pids = {};
+  //semaforo di attesa avvenuta scrittura F8,F9
   semOp(semid2, 0, 0);
 
-  //controllare funzione per segmentation fault
+  struct pid pids = {};
+
   pids = get_pidF8(pids);
   pids = get_pidF9(pids);
 
+  //variabili figli hackler
   ssize_t numRead;
   int i = 0;
   char tmp;
@@ -112,11 +114,12 @@ int main(int argc, char * argv[]) {
   int pid;
   struct hackler actions = {};
 
-  lseek(F7, 23, SEEK_CUR);
+  lseek(F7, 23, SEEK_CUR); //ci spostiamo dopo l'intestazione in F7
 
   while(finish == false ) { //while che legge carattere per carattere da F0.csv
 
     numRead = read(F7, &tmp, sizeof(char));
+
     if(numRead == 0){
       if(tmp != '\n'){
         i++;
@@ -143,10 +146,11 @@ int main(int argc, char * argv[]) {
 
         if(pid == 0){ //sono nel figlio
           if(strcmp(actions.delay, "-") != 0)
-            sleep(atoi(actions.delay)); //il figlio dorme per DelS1 secondi
+            sleep(atoi(actions.delay)); //il figlio dorme
 
+          //controllo del target
           if(strcmp(actions.target, "S1") == 0){
-            //scarico MQ coi pid
+            //scarico da MQ i pid
 
             if(strcmp(actions.action, "IncreaseDelay") == 0){
               while(msgrcv(mqInc_id, &sigInc, sizeof(struct signal) - sizeof(long), 1 , IPC_NOWAIT) != -1){

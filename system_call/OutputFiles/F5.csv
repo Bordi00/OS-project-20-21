@@ -1,0 +1,5 @@
+Id;Message;IDSender;IDReceiver;TimeArrival;TimeDeparture
+1;Ciao;1;3;11:27:50;11:27:50
+12;Cespu;1;3;11:27:51;11:27:51
+10;Macchina;1;2;11:27:56;11:27:56
+2;Come va?;1;2;11:27:56;11:27:56

@@ -23,7 +23,7 @@ struct msg fill_structure(char buffer[]){
 			switch(counter){
 				case 0: // id
 					message.id[index] = buffer[j];
-          index++;
+          				index++;
 					break;
 				case 1: // msg
 					message.message[index] = buffer[j];
